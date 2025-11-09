@@ -1,0 +1,28 @@
+{
+  "name": "esi-parser",
+  "version": "1.0.0",
+  "description": "ESI parser for Cloudflare Workers",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "lint": "prettier --write .",
+    "lint:check": "prettier --check .",
+    "types": "wrangler types"
+  },
+  "keywords": ["esi", "edge-side-includes", "cloudflare", "workers"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.5.0",
+    "@cloudflare/workers-types": "^4.20241106.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.8",
+    "wrangler": "^3.0.0"
+  }
+}
+
