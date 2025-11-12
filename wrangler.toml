@@ -1,5 +1,0 @@
-name = "esi-parser"
-main = "src/index.ts"
-compatibility_date = "2024-11-01"
-compatibility_flags = ["html_rewriter_treats_esi_include_as_void_tag"]
-

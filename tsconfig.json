@@ -4,7 +4,6 @@
     "module": "ES2022",
     "lib": ["ES2022"],
     "moduleResolution": "bundler",
-    "types": ["@cloudflare/workers-types"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -13,7 +12,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["src/**/*", ".wrangler/types/**/*"],
-  "exclude": ["node_modules", "tests"]
+  "exclude": ["node_modules", "tests"],
+  "types": ["./src/worker-configuration.d.ts"]
 }
-
