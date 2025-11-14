@@ -83,7 +83,9 @@ export class Esi {
   public readonly shim: boolean;
 
   constructor(options: EsiParserOptions = {}) {
-    this.fetchHandler = options.fetchHandler || globalThis.fetch;
+    this.fetchHandler =
+      options.fetchHandler ||
+      ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args));
     this.errorHandler = options.errorHandler || (() => "");
     this.maxDepth = options.maxDepth ?? 3;
     this.contentTypes = options.contentTypes || ["text/html"];
