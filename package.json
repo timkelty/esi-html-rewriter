@@ -1,17 +1,19 @@
 {
-  "name": "cloudflare-esi-parser",
+  "name": "esi-html-rewriter",
   "version": "1.0.0",
   "description": "ESI parser for Cloudflare Workers",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "test": "vitest",
+    "test": "vitest run",
     "test:watch": "vitest --watch",
     "lint": "prettier --write .",
     "lint:check": "prettier --check .",
     "types": "npm run types:generate && npm run types:check",
     "types:generate": "wrangler types src/worker-configuration.d.ts",
-    "types:check": "tsc --noEmit"
+    "types:check": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
   },
   "keywords": [
     "esi",
