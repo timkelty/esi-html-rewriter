@@ -154,10 +154,6 @@ npm run deploy
 
 ## Known Issues
 
-### Compatibility Flag Not Applied in Development
+### Compatibility Flag Not Applied
 
-There is a [known bug](https://github.com/cloudflare/workerd/issues/5531) where the `html_rewriter_treats_esi_include_as_void_tag` compatibility flag is not being applied when running `wrangler dev` or tests with `@cloudflare/vitest-pool-workers`. This causes HTMLRewriter to throw a `TypeError: Parser error: Unsupported pseudo-class or pseudo-element in selector` when trying to use `esi:include` as an element selector.
-
-**Workaround:** The flag works correctly in production deployments. For local development and testing, you may need to wait for a fix or use alternative testing methods.
-
-**Status:** Tracked in [cloudflare/workerd#5531](https://github.com/cloudflare/workerd/issues/5531)
+There is a [known bug](https://github.com/cloudflare/workerd/issues/5531) where the `html_rewriter_treats_esi_include_as_void_tag` compatibility flag is not being applied in workerd, affecting both development (`wrangler dev`) and deployed workers. This causes HTMLRewriter to throw a `TypeError: Parser error: Unsupported pseudo-class or pseudo-element in selector` when trying to use `esi:include` as an element selector.
