@@ -1,4 +1,4 @@
-import { processEsiResponse, addSurrogateCapability } from "../index";
+import { Esi } from "../index";
 
 export default {
   async fetch(request: Request): Promise<Response> {
@@ -32,11 +32,16 @@ export default {
           "Surrogate-Control": 'content="ESI/1.0"',
         },
       });
+      Object.defineProperty(response, "url", {
+        value: request.url,
+        writable: false,
+      });
 
-      return processEsiResponse(response, {
-        baseUrl: request.url,
+      const esi = new Esi({
         shim: true,
       });
+
+      return esi.parseResponse(response, request);
     }
 
     if (url.pathname.startsWith("/api/")) {
@@ -80,12 +85,10 @@ export default {
 
       try {
         const targetRequest = new Request(targetUrl);
-        const requestWithCapability = addSurrogateCapability(targetRequest);
-        const response = await fetch(requestWithCapability);
 
-        return processEsiResponse(response, {
-          baseUrl: targetUrl,
-        });
+        const esi = new Esi();
+
+        return esi.fetch(targetRequest);
       } catch (error) {
         return new Response(
           `Error: ${error instanceof Error ? error.message : String(error)}`,

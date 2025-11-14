@@ -1,11 +1,7 @@
 import { describe, it, expect } from "vitest";
-import {
-  parseEsi,
-  processEsiResponse,
-  type OnErrorHandler,
-} from "../src/index";
+import { Esi, type ErrorHandler } from "../src/index";
 
-describe("onError option", () => {
+describe("errorHandler option", () => {
   it("should remove element by default (empty string)", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/404" /></body></html>';
@@ -14,14 +10,15 @@ describe("onError option", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, { fetch: mockFetch });
+    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).not.toContain("<esi:include");
     expect(text).not.toContain("Not found");
   });
 
-  it("should remove element when onError returns empty string", async () => {
+  it("should remove element when errorHandler returns empty string", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/404" /></body></html>';
 
@@ -29,10 +26,12 @@ describe("onError option", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
-      onError: () => "",
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      errorHandler: () => "",
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).not.toContain("<esi:include");
@@ -47,10 +46,12 @@ describe("onError option", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
-      onError: () => '<div class="error">Failed to load content</div>',
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      errorHandler: () => '<div class="error">Failed to load content</div>',
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).not.toContain("<esi:include");
@@ -65,10 +66,12 @@ describe("onError option", () => {
       throw new Error("Network error");
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
-      onError: () => '<div class="error">Network error occurred</div>',
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      errorHandler: () => '<div class="error">Network error occurred</div>',
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).not.toContain("<esi:include");
@@ -86,11 +89,13 @@ describe("onError option", () => {
       });
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
-      onError: () =>
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      errorHandler: () =>
         '<div class="error"><h2>Error</h2><p>Content unavailable</p></div>',
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain(
@@ -99,7 +104,7 @@ describe("onError option", () => {
     expect(text).not.toContain("<esi:include");
   });
 
-  it("should work with processEsiResponse", async () => {
+  it("should work with parse(Response)", async () => {
     const originalResponse = new Response(
       '<html><body><esi:include src="https://example.com/404" /></body></html>',
       {
@@ -109,15 +114,24 @@ describe("onError option", () => {
         },
       },
     );
+    Object.defineProperty(originalResponse, "url", {
+      value: "https://example.com/page",
+      writable: false,
+    });
 
     const mockFetch = async () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = processEsiResponse(originalResponse, {
-      fetch: mockFetch,
-      onError: () => "<div>Fallback content</div>",
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      errorHandler: () => "<div>Fallback content</div>",
+      shim: true,
     });
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page",
+    );
     const text = await result.text();
 
     expect(text).toContain("<div>Fallback content</div>");
@@ -132,14 +146,16 @@ describe("onError option", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const onError: OnErrorHandler = (error, request, response) => {
+    const errorHandler: ErrorHandler = (error, request, response) => {
       return `<div class="error">Failed to load: ${request.url} (${response?.status})</div>`;
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
-      onError,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      errorHandler,
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).not.toContain("<esi:include");
@@ -156,12 +172,14 @@ describe("onError option", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const onError = () => "";
+    const errorHandler = () => "";
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
-      onError,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      errorHandler,
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).not.toContain("<esi:include");
@@ -180,15 +198,17 @@ describe("onError option", () => {
     };
 
     let receivedResponse: Response | undefined;
-    const onError: OnErrorHandler = (error, request, response) => {
+    const errorHandler: ErrorHandler = (error, request, response) => {
       receivedResponse = response;
       return `<div>Error: ${response?.status} ${response?.statusText}</div>`;
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
-      onError,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      errorHandler,
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(receivedResponse).toBeDefined();
@@ -206,15 +226,17 @@ describe("onError option", () => {
     };
 
     let receivedResponse: Response | undefined;
-    const onError: OnErrorHandler = (error, request, response) => {
+    const errorHandler: ErrorHandler = (error, request, response) => {
       receivedResponse = response;
       return `<div>Error: ${error.message}</div>`;
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
-      onError,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      errorHandler,
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(receivedResponse).toBeUndefined();
@@ -229,17 +251,19 @@ describe("onError option", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const onError: OnErrorHandler = (error, request, response) => {
+    const errorHandler: ErrorHandler = (error, request, response) => {
       if (response?.status === 404) {
         return '<div class="not-found">Content not found</div>';
       }
       return `<div class="error">Error: ${error.message}</div>`;
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
-      onError,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      errorHandler,
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain('<div class="not-found">Content not found</div>');
@@ -255,15 +279,17 @@ describe("onError option", () => {
     };
 
     let receivedRequest: Request | undefined;
-    const onError: OnErrorHandler = (error, request, response) => {
+    const errorHandler: ErrorHandler = (error, request, response) => {
       receivedRequest = request;
       return `<div>Error loading ${request.url}</div>`;
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
-      onError,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      errorHandler,
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(receivedRequest).toBeDefined();

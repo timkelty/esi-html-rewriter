@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseEsi, type OnErrorHandler } from "../src/index";
+import { Esi, type ErrorHandler } from "../src/index";
 import { getUrlString } from "./helpers";
 
 describe("recursion depth", () => {
@@ -40,10 +40,12 @@ describe("recursion depth", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
       maxDepth: 3,
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("Level 1");
@@ -85,18 +87,20 @@ describe("recursion depth", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const onError: OnErrorHandler = (error) => {
+    const errorHandler: ErrorHandler = (error) => {
       if (error.message.includes("recursion depth exceeded")) {
         errorHandlerCalled = true;
       }
       return "";
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
       maxDepth: 2,
-      onError,
+      errorHandler,
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("Level 1");

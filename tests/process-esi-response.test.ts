@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { processEsiResponse } from "../src/index";
+import { Esi } from "../src/index";
 import { getUrlString } from "./helpers";
 
-describe("processEsiResponse", () => {
+describe("Esi.parse with Response", () => {
   it("should process ESI includes in a Response with Surrogate-Control header", async () => {
     const originalResponse = new Response(
       '<html><body><esi:include src="https://example.com/content" /></body></html>',
@@ -13,6 +13,10 @@ describe("processEsiResponse", () => {
         },
       },
     );
+    Object.defineProperty(originalResponse, "url", {
+      value: "https://example.com/page",
+      writable: false,
+    });
 
     const mockFetch = async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
@@ -22,10 +26,14 @@ describe("processEsiResponse", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = processEsiResponse(originalResponse, {
-      fetch: mockFetch,
-      baseUrl: "https://example.com/page",
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      shim: true,
     });
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page",
+    );
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -40,7 +48,11 @@ describe("processEsiResponse", () => {
       },
     );
 
-    const result = processEsiResponse(originalResponse);
+    const esi = new Esi();
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page",
+    );
 
     // Should return the original response unchanged
     expect(result).toBe(originalResponse);
@@ -58,6 +70,10 @@ describe("processEsiResponse", () => {
         },
       },
     );
+    Object.defineProperty(originalResponse, "url", {
+      value: "https://example.com/page",
+      writable: false,
+    });
 
     const mockFetch = async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
@@ -67,7 +83,11 @@ describe("processEsiResponse", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = processEsiResponse(originalResponse, { fetch: mockFetch });
+    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page",
+    );
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -85,7 +105,11 @@ describe("processEsiResponse", () => {
       },
     );
 
-    const result = processEsiResponse(originalResponse);
+    const esi = new Esi();
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page",
+    );
 
     // Should return the original response unchanged
     expect(result).toBe(originalResponse);
@@ -103,6 +127,10 @@ describe("processEsiResponse", () => {
         },
       },
     );
+    Object.defineProperty(originalResponse, "url", {
+      value: "https://example.com/page",
+      writable: false,
+    });
 
     const mockFetch = async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
@@ -112,7 +140,11 @@ describe("processEsiResponse", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = processEsiResponse(originalResponse, { fetch: mockFetch });
+    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page",
+    );
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -129,6 +161,10 @@ describe("processEsiResponse", () => {
         },
       },
     );
+    Object.defineProperty(originalResponse, "url", {
+      value: "https://example.com/page",
+      writable: false,
+    });
 
     const mockFetch = async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
@@ -138,10 +174,15 @@ describe("processEsiResponse", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = processEsiResponse(originalResponse, {
-      fetch: mockFetch,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
       contentTypes: ["text/xhtml", "text/html"],
+      shim: true,
     });
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page",
+    );
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -159,9 +200,13 @@ describe("processEsiResponse", () => {
       },
     );
 
-    const result = processEsiResponse(originalResponse, {
+    const esi = new Esi({
       contentTypes: ["text/xhtml"],
     });
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page",
+    );
 
     // Should return the original response unchanged
     expect(result).toBe(originalResponse);
@@ -179,6 +224,10 @@ describe("processEsiResponse", () => {
         },
       },
     );
+    Object.defineProperty(originalResponse, "url", {
+      value: "https://example.com/page",
+      writable: false,
+    });
 
     const mockFetch = async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
@@ -188,7 +237,11 @@ describe("processEsiResponse", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = processEsiResponse(originalResponse, { fetch: mockFetch });
+    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page",
+    );
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -197,7 +250,7 @@ describe("processEsiResponse", () => {
 
   it("should use response URL as baseUrl when not provided", async () => {
     const originalResponse = new Response(
-      '<html><body><esi:include src="/api/data" /></body></html>',
+      '<html><body><esi:include src="api/data" /></body></html>',
       {
         headers: {
           "Content-Type": "text/html",
@@ -205,6 +258,10 @@ describe("processEsiResponse", () => {
         },
       },
     );
+    Object.defineProperty(originalResponse, "url", {
+      value: "https://example.com/page/",
+      writable: false,
+    });
 
     const mockFetch = async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
@@ -214,24 +271,32 @@ describe("processEsiResponse", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = processEsiResponse(originalResponse, {
-      fetch: mockFetch,
-      baseUrl: "https://example.com/page",
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      shim: true,
     });
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page/",
+    );
     const text = await result.text();
 
     expect(text).toContain("<data>Data</data>");
   });
 
-  it("should return original response if body is null", () => {
+  it("should return original response if body is null", async () => {
     const originalResponse = new Response(null, { status: 204 });
 
-    const result = processEsiResponse(originalResponse);
+    const esi = new Esi();
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page",
+    );
 
     expect(result).toBe(originalResponse);
   });
 
-  it("should override baseUrl when provided", async () => {
+  it("should use response URL for baseUrl", async () => {
     const originalResponse = new Response(
       '<html><body><esi:include src="/api/data" /></body></html>',
       {
@@ -241,6 +306,10 @@ describe("processEsiResponse", () => {
         },
       },
     );
+    Object.defineProperty(originalResponse, "url", {
+      value: "https://api.example.com",
+      writable: false,
+    });
 
     const mockFetch = async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
@@ -250,10 +319,14 @@ describe("processEsiResponse", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = processEsiResponse(originalResponse, {
-      baseUrl: "https://api.example.com",
-      fetch: mockFetch,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      shim: true,
     });
+    const result = await esi.parseResponse(
+      originalResponse,
+      originalResponse.url || "https://example.com/page",
+    );
     const text = await result.text();
 
     expect(text).toContain("<data>API Data</data>");

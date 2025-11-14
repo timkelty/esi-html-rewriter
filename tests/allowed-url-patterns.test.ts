@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseEsi, type OnErrorHandler } from "../src/index";
+import { Esi, type ErrorHandler } from "../src/index";
 import { getUrlString } from "./helpers";
 
 describe("allowedUrlPatterns", () => {
@@ -15,10 +15,12 @@ describe("allowedUrlPatterns", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
       allowedUrlPatterns: [new URLPattern({ pathname: "/api/*" })],
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("<data>API Data</data>");
@@ -34,18 +36,20 @@ describe("allowedUrlPatterns", () => {
       return new Response("Should not be fetched", { status: 200 });
     };
 
-    const onError: OnErrorHandler = (error) => {
+    const errorHandler: ErrorHandler = (error) => {
       if (error.message.includes("not allowed")) {
         errorHandlerCalled = true;
       }
       return "";
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
       allowedUrlPatterns: [new URLPattern({ pathname: "/api/*" })],
-      onError,
+      errorHandler,
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).not.toContain("Should not be fetched");
@@ -64,10 +68,12 @@ describe("allowedUrlPatterns", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
       allowedUrlPatterns: ["https://trusted.com/*"],
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("<data>Trusted Data</data>");
@@ -86,9 +92,11 @@ describe("allowedUrlPatterns", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("<data>Any Data</data>");
@@ -107,13 +115,15 @@ describe("allowedUrlPatterns", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, {
-      fetch: mockFetch,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
       allowedUrlPatterns: [
         new URLPattern({ pathname: "/api/*" }),
         new URLPattern({ pathname: "/static/*" }),
       ],
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("<file>Static File</file>");

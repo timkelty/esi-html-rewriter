@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { parseEsi } from "../src/index";
+import { Esi } from "../src/index";
 import { getUrlString } from "./helpers";
 
-describe("parseEsi", () => {
+describe("Esi.parse", () => {
   it("should replace esi:include with fetched content", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/content" /></body></html>';
@@ -15,7 +15,8 @@ describe("parseEsi", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, { fetch: mockFetch });
+    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("<p>Included content</p>");
@@ -44,7 +45,8 @@ describe("parseEsi", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, { fetch: mockFetch });
+    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("<header>Header</header>");
@@ -64,10 +66,11 @@ describe("parseEsi", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, {
-      baseUrl: "https://example.com",
-      fetch: mockFetch,
+    const esi = new Esi({
+      fetchHandler: mockFetch,
+      shim: true,
     });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("<div>API Content</div>");
@@ -77,7 +80,8 @@ describe("parseEsi", () => {
   it("should remove esi:include tag when src attribute is missing", async () => {
     const html = "<html><body><esi:include /></body></html>";
 
-    const result = parseEsi(html);
+    const esi = new Esi({ shim: true });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).not.toContain("<esi:include");
@@ -91,7 +95,8 @@ describe("parseEsi", () => {
       throw new Error("Network error");
     };
 
-    const result = parseEsi(html, { fetch: mockFetch });
+    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).not.toContain("<esi:include");
@@ -105,7 +110,8 @@ describe("parseEsi", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, { fetch: mockFetch });
+    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).not.toContain("<esi:include");
@@ -129,7 +135,8 @@ describe("parseEsi", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(stream, { fetch: mockFetch });
+    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
+    const result = await esi.parseHtml(stream, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("<span>Streamed content</span>");
@@ -156,7 +163,8 @@ describe("parseEsi", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, { fetch: mockFetch });
+    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("<title>Test</title>");
@@ -178,7 +186,8 @@ describe("parseEsi", () => {
       return new Response("Not found", { status: 404 });
     };
 
-    const result = parseEsi(html, { fetch: mockFetch });
+    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
+    const result = await esi.parseHtml(html, "https://example.com");
     const text = await result.text();
 
     expect(text).toContain("<h1>Title</h1>");
