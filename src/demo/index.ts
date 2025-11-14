@@ -35,6 +35,7 @@ export default {
 
       return processEsiResponse(response, {
         baseUrl: request.url,
+        shim: true,
       });
     }
 

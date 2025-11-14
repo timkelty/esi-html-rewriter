@@ -71,6 +71,7 @@ The parser supports the following options:
 - `contentTypes`: Array of content types that should be processed for ESI includes (default: `['text/html']`)
 - `maxDepth`: Maximum recursion depth for nested ESI includes (default: `3`)
 - `allowedUrlPatterns`: Array of URLPattern objects or pattern strings to restrict which URLs can be included (default: all URLs allowed)
+- `shim`: When `true`, replaces `<esi:include />` tags with `<esi-include></esi-include>` to work around compatibility flag issues (default: `false`)
 - `onError`: Callback function that controls what happens when an ESI fetch returns an error response or fails
   - Called with `(error: Error, request: Request, response?: Response)`
   - Return a string to replace the element with. Return an empty string to remove the element
@@ -157,3 +158,11 @@ npm run deploy
 ### Compatibility Flag Not Applied
 
 There is a [known bug](https://github.com/cloudflare/workerd/issues/5531) where the `html_rewriter_treats_esi_include_as_void_tag` compatibility flag is not being applied in workerd, affecting both development (`wrangler dev`) and deployed workers. This causes HTMLRewriter to throw a `TypeError: Parser error: Unsupported pseudo-class or pseudo-element in selector` when trying to use `esi:include` as an element selector.
+
+**Workaround:** Enable the `shim` option to automatically replace `<esi:include />` tags with `<esi-include></esi-include>` before processing. This allows the library to work around the compatibility flag issue:
+
+```typescript
+const result = parseEsi(html, { shim: true });
+// or
+const processed = processEsiResponse(response, { shim: true });
+```

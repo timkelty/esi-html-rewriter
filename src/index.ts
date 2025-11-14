@@ -54,6 +54,7 @@ export interface EsiParserOptions {
   contentTypes?: string[];
   maxDepth?: number;
   allowedUrlPatterns?: (URLPattern | string)[];
+  shim?: boolean;
 }
 
 function matchesUrlPattern(
@@ -105,6 +106,9 @@ class EsiIncludeHandler {
         `ESI recursion depth exceeded (max: ${this.maxDepth})`,
       );
       const url = this.baseUrl ? new URL(src, this.baseUrl).toString() : src;
+      console.error(
+        `[ESI] Recursion depth exceeded for ${url} (max: ${this.maxDepth})`,
+      );
       const request = new Request(url);
       const replacement = this.handleError(error, request);
       if (replacement) {
@@ -121,6 +125,7 @@ class EsiIncludeHandler {
       if (this.allowedUrlPatterns && this.allowedUrlPatterns.length > 0) {
         if (!matchesUrlPattern(url, this.allowedUrlPatterns)) {
           const error = new Error(`ESI include URL not allowed: ${url}`);
+          console.error(`[ESI] URL not allowed: ${url}`);
           const request = new Request(url);
           const replacement = this.handleError(error, request);
           if (replacement) {
@@ -133,11 +138,14 @@ class EsiIncludeHandler {
       }
 
       const request = new Request(url);
-      const response = await this.customFetch(request);
+      const response = await (this.customFetch || globalThis.fetch)(request);
 
       if (!response.ok) {
         const error = new Error(
           `ESI fetch failed: ${response.status} ${response.statusText}`,
+        );
+        console.error(
+          `[ESI] Fetch failed for ${url}: ${response.status} ${response.statusText}`,
         );
         const replacement = this.handleError(error, request, response);
         if (replacement) {
@@ -172,6 +180,7 @@ class EsiIncludeHandler {
       const url = this.baseUrl ? new URL(src, this.baseUrl).toString() : src;
       const request = new Request(url);
       const err = error instanceof Error ? error : new Error(String(error));
+      console.error(`[ESI] Error processing include for ${url}:`, err);
       const replacement = this.handleError(err, request);
       if (replacement) {
         element.replace(replacement, { html: true });
@@ -190,6 +199,16 @@ class EsiIncludeHandler {
   }
 }
 
+function shimEsiTags(html: string): string {
+  return html
+    .replace(
+      /<esi:include\s+([^>]*?)\s*\/>/gi,
+      "<esi-include $1></esi-include>",
+    )
+    .replace(/<esi:include\s+([^>]*?)>/gi, "<esi-include $1>")
+    .replace(/<\/esi:include>/gi, "</esi-include>");
+}
+
 export function parseEsi(
   html: string | ReadableStream,
   options: EsiParserOptions = {},
@@ -197,22 +216,40 @@ export function parseEsi(
 ): Response {
   const {
     baseUrl,
-    fetch: customFetch = fetch,
+    fetch: customFetch,
     onError = () => "",
     maxDepth = 3,
     allowedUrlPatterns,
     contentTypes = ["text/html"],
+    shim = false,
   } = options;
 
+  const fetchFn = customFetch || fetch;
+
+  let processedHtml: string | ReadableStream = html;
+  if (shim) {
+    if (typeof html === "string") {
+      processedHtml = shimEsiTags(html);
+    } else {
+      return new Response(html, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      })
+        .text()
+        .then((text) => {
+          return parseEsi(shimEsiTags(text), options, currentDepth);
+        });
+    }
+  }
+
   const htmlStream =
-    typeof html === "string"
+    typeof processedHtml === "string"
       ? new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode(html));
+            controller.enqueue(new TextEncoder().encode(processedHtml));
             controller.close();
           },
         })
-      : html;
+      : processedHtml;
 
   const response = new Response(htmlStream, {
     headers: {
@@ -223,7 +260,7 @@ export function parseEsi(
   const rewriter = new HTMLRewriter();
   const handler = new EsiIncludeHandler(
     baseUrl,
-    customFetch,
+    fetchFn,
     onError,
     maxDepth,
     currentDepth,
@@ -232,7 +269,8 @@ export function parseEsi(
     options,
   );
 
-  return rewriter.on("esi:include", handler).transform(response);
+  const selector = shim ? "esi-include" : "esi:include";
+  return rewriter.on(selector, handler).transform(response);
 }
 
 export function processEsiResponse(
@@ -253,6 +291,12 @@ export function processEsiResponse(
   }
 
   const baseUrl = options.baseUrl || response.url;
+
+  if (options.shim) {
+    return response.text().then((text) => {
+      return parseEsi(text, { ...options, baseUrl });
+    });
+  }
 
   return parseEsi(response.body, { ...options, baseUrl });
 }
