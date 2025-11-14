@@ -29,7 +29,8 @@ function addSurrogateCapability(
   request: Request,
   capabilityToken: string = "ESI/1.0",
 ): Request {
-  const headers = new Headers(request.headers);
+  const clonedRequest = request.clone();
+  const headers = new Headers(clonedRequest.headers);
 
   const existing = headers.get("Surrogate-Capability");
   const capability = `cloudflare-workers="${capabilityToken}"`;
@@ -40,7 +41,7 @@ function addSurrogateCapability(
     headers.set("Surrogate-Capability", capability);
   }
 
-  return new Request(request, { headers });
+  return new Request(clonedRequest, { headers });
 }
 
 function matchesUrlPattern(
