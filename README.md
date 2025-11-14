@@ -10,20 +10,6 @@ An ESI (Edge Side Includes) parser for Cloudflare Workers using HTMLRewriter.
 - ✅ Configurable error handling via `onError` option
 - ✅ Requires `html_rewriter_treats_esi_include_as_void_tag` compatibility flag
 
-## Installation
-
-If using this as a published package:
-
-```bash
-npm install esi-html-rewriter
-```
-
-If developing this package locally:
-
-```bash
-npm install
-```
-
 ## Usage
 
 ### Basic Usage
