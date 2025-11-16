@@ -7,7 +7,7 @@ An ESI (Edge Side Includes) parser for Cloudflare Workers using HTMLRewriter.
 - ✅ Supports `<esi:include src="...">` tags
 - ✅ Uses Cloudflare's HTMLRewriter for efficient streaming parsing
 - ✅ ESI/1.0 compliant: Only processes responses with `Surrogate-Control` header
-- ✅ Configurable error handling via `errorHandler` option
+- ✅ Automatic error logging with full error details
 - ✅ Requires `html_rewriter_treats_esi_include_as_void_tag` compatibility flag
 
 ## Usage
@@ -19,16 +19,19 @@ import { Esi } from "esi-html-rewriter";
 
 const esi = new Esi({ shim: true });
 
-// Parse HTML string or stream (baseUrl required for relative URLs)
-const html =
-  '<html><body><esi:include src="https://example.com/content" /></body></html>';
-const result = esi.parseHtml(html, "https://example.com");
-const processed = await result.text();
-
 // Process a Response (ESI/1.0 compliant - only processes if Surrogate-Control header is present)
 // Esi.fetch automatically adds the Surrogate-Capability header to advertise ESI support
 const request = new Request("https://example.com/page");
 const processedResponse = await esi.fetch(request);
+
+// Or process an existing Response
+const response = new Response(html, {
+  headers: {
+    "Content-Type": "text/html",
+    "Surrogate-Control": 'content="ESI/1.0"',
+  },
+});
+const processed = await esi.parseResponse(response, request);
 ```
 
 ### ESI/1.0 Compliance
@@ -62,44 +65,14 @@ export default {
 
 The parser supports the following options:
 
-- `fetchHandler`: Custom fetch function (useful for testing or custom request handling)
-- `errorHandler`: Callback function that controls what happens when an ESI fetch returns an error response or fails
-  - Called with `(error: Error, request: Request, response?: Response)`
-  - Return a string to replace the element with. Return an empty string to remove the element
-  - Default: Returns an empty string (removes the element)
 - `contentTypes`: Array of content types that should be processed for ESI includes (default: `['text/html']`)
 - `maxDepth`: Maximum recursion depth for nested ESI includes (default: `3`)
 - `allowedUrlPatterns`: Array of URLPattern objects or pattern strings to restrict which URLs can be included (default: all URLs allowed)
 - `shim`: When `true`, replaces `<esi:include />` tags with `<esi-include></esi-include>` to work around compatibility flag issues (default: `false`)
 
-### Error Handling Examples
+### Error Handling
 
-```typescript
-import { Esi, type ErrorHandler } from "esi-html-rewriter";
-
-const html =
-  '<html><body><esi:include src="https://example.com/content" /></body></html>';
-
-// Default behavior: removes element on error
-const esi1 = new Esi();
-const result1 = esi1.parseHtml(html, "https://example.com");
-
-// Replace with static fallback content on error
-const esi2 = new Esi({
-  errorHandler: () => '<div class="error">Content unavailable</div>',
-});
-const result2 = esi2.parseHtml(html, "https://example.com");
-
-// Use a callback for dynamic error handling
-const errorHandler: ErrorHandler = (error, request, response) => {
-  if (response?.status === 404) {
-    return '<div class="not-found">Content not found</div>';
-  }
-  return `<div class="error">Failed to load: ${error.message}</div>`;
-};
-const esi3 = new Esi({ errorHandler });
-const result3 = esi3.parseHtml(html, "https://example.com");
-```
+When an ESI include fails (network error, 404, etc.), the error is logged to `console.error` with full details (including error code, cause, stack trace, etc.) and the element is removed from the HTML. This allows processing to continue for other ESI includes even if one fails.
 
 ### Security and Recursion Examples
 
@@ -108,7 +81,8 @@ import { Esi } from "esi-html-rewriter";
 
 // Limit recursion depth to prevent infinite loops
 const esi1 = new Esi({ maxDepth: 5, shim: true });
-const result1 = esi1.parseHtml(html, "https://example.com");
+const request1 = new Request("https://example.com/page");
+const result1 = await esi1.fetch(request1);
 
 // Restrict which URLs can be included using URLPattern
 const esi2 = new Esi({
@@ -118,7 +92,8 @@ const esi2 = new Esi({
   ],
   shim: true,
 });
-const result2 = esi2.parseHtml(html, "https://example.com");
+const request2 = new Request("https://example.com/page");
+const result2 = await esi2.fetch(request2);
 
 // Combine security options
 const esi3 = new Esi({
@@ -126,7 +101,8 @@ const esi3 = new Esi({
   allowedUrlPatterns: ["/api/*", "/static/*"],
   shim: true,
 });
-const result3 = esi3.parseHtml(html, "https://example.com");
+const request3 = new Request("https://example.com/page");
+const result3 = await esi3.fetch(request3);
 ```
 
 ## Testing
@@ -165,7 +141,8 @@ There is a [known bug](https://github.com/cloudflare/workerd/issues/5531) where 
 
 ```typescript
 const esi = new Esi({ shim: true });
-const result = esi.parseHtml(html, "https://example.com");
+const request = new Request("https://example.com/page");
+const processed = await esi.fetch(request);
 // or
-const processed = esi.parseResponse(response, response.url);
+const processed = await esi.parseResponse(response, request);
 ```

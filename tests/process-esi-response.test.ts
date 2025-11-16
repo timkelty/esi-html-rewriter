@@ -37,7 +37,9 @@ describe("Esi.parse with Response", () => {
     const esi = new Esi({
       shim: true,
     });
-    const request = new Request(originalResponse.url || "https://example.com/page");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page",
+    );
     const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
@@ -54,7 +56,9 @@ describe("Esi.parse with Response", () => {
     );
 
     const esi = new Esi();
-    const request = new Request(originalResponse.url || "https://example.com/page");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page",
+    );
     const result = await esi.parseResponse(originalResponse, request);
 
     // Should return the original response unchanged
@@ -88,7 +92,9 @@ describe("Esi.parse with Response", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const request = new Request(originalResponse.url || "https://example.com/page");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page",
+    );
     const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
@@ -108,7 +114,9 @@ describe("Esi.parse with Response", () => {
     );
 
     const esi = new Esi();
-    const request = new Request(originalResponse.url || "https://example.com/page");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page",
+    );
     const result = await esi.parseResponse(originalResponse, request);
 
     // Should return the original response unchanged
@@ -142,7 +150,9 @@ describe("Esi.parse with Response", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const request = new Request(originalResponse.url || "https://example.com/page");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page",
+    );
     const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
@@ -178,7 +188,9 @@ describe("Esi.parse with Response", () => {
       contentTypes: ["text/xhtml", "text/html"],
       shim: true,
     });
-    const request = new Request(originalResponse.url || "https://example.com/page");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page",
+    );
     const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
@@ -200,7 +212,9 @@ describe("Esi.parse with Response", () => {
     const esi = new Esi({
       contentTypes: ["text/xhtml"],
     });
-    const request = new Request(originalResponse.url || "https://example.com/page");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page",
+    );
     const result = await esi.parseResponse(originalResponse, request);
 
     // Should return the original response unchanged
@@ -234,7 +248,9 @@ describe("Esi.parse with Response", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const request = new Request(originalResponse.url || "https://example.com/page");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page",
+    );
     const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
@@ -269,7 +285,9 @@ describe("Esi.parse with Response", () => {
     const esi = new Esi({
       shim: true,
     });
-    const request = new Request(originalResponse.url || "https://example.com/page/");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page/",
+    );
     const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
@@ -281,7 +299,9 @@ describe("Esi.parse with Response", () => {
     const originalResponse = new Response(null, { status: 204 });
 
     const esi = new Esi();
-    const request = new Request(originalResponse.url || "https://example.com/page");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page",
+    );
     const result = await esi.parseResponse(originalResponse, request);
 
     expect(result).toBe(originalResponse);
@@ -314,7 +334,9 @@ describe("Esi.parse with Response", () => {
     const esi = new Esi({
       shim: true,
     });
-    const request = new Request(originalResponse.url || "https://example.com/page");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page",
+    );
     const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 

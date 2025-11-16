@@ -77,19 +77,19 @@ function logError(error: unknown, context?: Record<string, unknown>): void {
   // Extract all error properties including non-enumerable ones
   const errorObj = error instanceof Error ? error : new Error(String(error));
   const errorWithCode = errorObj as Error & { code?: number | string };
-  
+
   // Build error info object with all properties
   const errorInfo: Record<string, unknown> = {
     message: errorObj.message,
     name: errorObj.name,
     stack: errorObj.stack,
   };
-  
+
   // Add error code if it exists (e.g., Cloudflare Workers error 1042)
   if (errorWithCode.code !== undefined) {
     errorInfo.code = errorWithCode.code;
   }
-  
+
   // Add all own properties from the error object
   for (const key of Object.getOwnPropertyNames(errorObj)) {
     if (!(key in errorInfo)) {
@@ -100,17 +100,17 @@ function logError(error: unknown, context?: Record<string, unknown>): void {
       }
     }
   }
-  
+
   // Add cause if it exists
   if (errorObj.cause !== undefined) {
     errorInfo.cause = errorObj.cause;
   }
-  
+
   // Add any additional context
   if (context) {
     errorInfo.context = context;
   }
-  
+
   // Log with all information
   console.error("ESI Error:", errorInfo);
 }
@@ -169,7 +169,8 @@ export class Esi {
           try {
             await this.handleEsiInclude(element, request, depth);
           } catch (error) {
-            logError(error, { url: element.getAttribute("src") || "unknown" });
+            element.remove();
+            logError(error);
           }
         },
       })
@@ -196,10 +197,7 @@ export class Esi {
       });
     }
 
-    const esiRequest = new Request(
-      new URL(src, request.url),
-      {...request},
-    );
+    const esiRequest = new Request(new URL(src, request.url), { ...request });
 
     if (this.allowedUrlPatterns && this.allowedUrlPatterns.length > 0) {
       if (!matchesUrlPattern(esiRequest.url, this.allowedUrlPatterns)) {
@@ -208,11 +206,8 @@ export class Esi {
         });
       }
     }
-    
-    const esiResponse = await this.fetch(
-      esiRequest,
-      depth + 1,
-    );
+
+    const esiResponse = await this.fetch(esiRequest, depth + 1);
 
     if (!esiResponse.ok) {
       throw new Error("ESI fetch failed", {
@@ -225,15 +220,11 @@ export class Esi {
     }
 
     element.replace(await esiResponse.text(), { html: true });
-}
+  }
 
-  async fetch(
-    request: Request,
-    depth: number = 0,
-  ): Promise<Response> {
+  async fetch(request: Request, depth: number = 0): Promise<Response> {
     const requestWithCapability = addSurrogateCapability(request);
     const response = await fetch(requestWithCapability);
     return this.parseResponse(response, request, depth);
   }
 }
-

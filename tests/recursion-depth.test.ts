@@ -52,7 +52,10 @@ describe("recursion depth", () => {
       maxDepth: 3,
       shim: true,
     });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
@@ -99,13 +102,16 @@ describe("recursion depth", () => {
       maxDepth: 2,
       shim: true,
     });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
     expect(text).toContain("Level 1");
     expect(text).toContain("Level 2");
-    // When maxDepth is exceeded, the element remains in HTML
-    expect(text).toContain("<esi-include");
+    // When maxDepth is exceeded, the element is removed
+    expect(text).not.toContain("<esi-include");
   });
 });

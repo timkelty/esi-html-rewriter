@@ -24,7 +24,10 @@ describe("Esi.parse", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
@@ -56,7 +59,10 @@ describe("Esi.parse", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
@@ -81,7 +87,10 @@ describe("Esi.parse", () => {
     const esi = new Esi({
       shim: true,
     });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
@@ -89,18 +98,21 @@ describe("Esi.parse", () => {
     expect(text).not.toContain("<esi:include");
   });
 
-  it("should keep esi:include tag when src attribute is missing", async () => {
+  it("should remove esi:include tag when src attribute is missing", async () => {
     const html = "<html><body><esi:include /></body></html>";
 
     const esi = new Esi({ shim: true });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
-    expect(text).toContain("<esi-include");
+    expect(text).not.toContain("<esi-include");
   });
 
-  it("should keep esi:include tag on fetch error", async () => {
+  it("should remove esi:include tag on fetch error", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/error" /></body></html>';
 
@@ -110,14 +122,17 @@ describe("Esi.parse", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
-    expect(text).toContain("<esi-include");
+    expect(text).not.toContain("<esi-include");
   });
 
-  it("should keep esi:include tag when response is not OK", async () => {
+  it("should remove esi:include tag when response is not OK", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/404" /></body></html>';
 
@@ -127,11 +142,14 @@ describe("Esi.parse", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
-    expect(text).toContain("<esi-include");
+    expect(text).not.toContain("<esi-include");
   });
 
   it("should handle ReadableStream input", async () => {
@@ -154,7 +172,10 @@ describe("Esi.parse", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const { response, request } = createEsiResponse(stream, "https://example.com");
+    const { response, request } = createEsiResponse(
+      stream,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
@@ -184,7 +205,10 @@ describe("Esi.parse", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
@@ -209,7 +233,10 @@ describe("Esi.parse", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 

@@ -27,7 +27,10 @@ describe("allowedUrlPatterns", () => {
       allowedUrlPatterns: [new URLPattern({ pathname: "/api/*" })],
       shim: true,
     });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
@@ -35,7 +38,7 @@ describe("allowedUrlPatterns", () => {
     expect(text).not.toContain("<esi:include");
   });
 
-  it("should keep element when URL not matching URLPattern", async () => {
+  it("should remove element when URL not matching URLPattern", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/other/data" /></body></html>';
 
@@ -48,12 +51,15 @@ describe("allowedUrlPatterns", () => {
       allowedUrlPatterns: [new URLPattern({ pathname: "/api/*" })],
       shim: true,
     });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
     expect(text).not.toContain("Should not be fetched");
-    expect(text).toContain("<esi-include");
+    expect(text).not.toContain("<esi-include");
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
@@ -74,7 +80,10 @@ describe("allowedUrlPatterns", () => {
       allowedUrlPatterns: ["https://trusted.com/*"],
       shim: true,
     });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
@@ -98,7 +107,10 @@ describe("allowedUrlPatterns", () => {
     const esi = new Esi({
       shim: true,
     });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
@@ -126,7 +138,10 @@ describe("allowedUrlPatterns", () => {
       ],
       shim: true,
     });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 

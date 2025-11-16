@@ -11,7 +11,7 @@ describe("error handling", () => {
     vi.unstubAllGlobals();
   });
 
-  it("should keep element in HTML on error response", async () => {
+  it("should remove element on error response", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/404" /></body></html>';
 
@@ -21,15 +21,18 @@ describe("error handling", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
-    expect(text).toContain("<esi-include");
+    expect(text).not.toContain("<esi-include");
     expect(text).not.toContain("Not found");
   });
 
-  it("should keep element in HTML on network error", async () => {
+  it("should remove element on network error", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/error" /></body></html>';
 
@@ -39,14 +42,17 @@ describe("error handling", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
-    expect(text).toContain("<esi-include");
+    expect(text).not.toContain("<esi-include");
   });
 
-  it("should keep element in HTML on server error", async () => {
+  it("should remove element on server error", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/500" /></body></html>';
 
@@ -59,14 +65,17 @@ describe("error handling", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({ shim: true });
-    const { response, request } = createEsiResponse(html, "https://example.com");
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
     const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
-    expect(text).toContain("<esi-include");
+    expect(text).not.toContain("<esi-include");
   });
 
-  it("should keep element in HTML on error with parseResponse", async () => {
+  it("should remove element on error with parseResponse", async () => {
     const originalResponse = new Response(
       '<html><body><esi:include src="https://example.com/404" /></body></html>',
       {
@@ -89,11 +98,13 @@ describe("error handling", () => {
     const esi = new Esi({
       shim: true,
     });
-    const request = new Request(originalResponse.url || "https://example.com/page");
+    const request = new Request(
+      originalResponse.url || "https://example.com/page",
+    );
     const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
-    expect(text).toContain("<esi-include");
+    expect(text).not.toContain("<esi-include");
     expect(text).not.toContain("Not found");
   });
 });
