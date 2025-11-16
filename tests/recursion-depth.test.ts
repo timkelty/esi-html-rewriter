@@ -1,14 +1,21 @@
-import { describe, it, expect } from "vitest";
-import { Esi, type ErrorHandler } from "../src/index";
-import { getUrlString } from "./helpers";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { Esi } from "../src/index";
+import { getUrlString, createEsiResponse } from "./helpers";
 
 describe("recursion depth", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
   it("should process nested ESI includes up to maxDepth", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/level1" /></body></html>';
 
     let fetchCount = 0;
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       fetchCount++;
       const urlStr = getUrlString(input);
 
@@ -38,14 +45,15 @@ describe("recursion depth", () => {
         return new Response("<div>Level 3</div>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
     const esi = new Esi({
-      fetchHandler: mockFetch,
       maxDepth: 3,
       shim: true,
     });
-    const result = await esi.parseHtml(html, "https://example.com");
+    const { response, request } = createEsiResponse(html, "https://example.com");
+    const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
     expect(text).toContain("Level 1");
@@ -58,8 +66,7 @@ describe("recursion depth", () => {
     const html =
       '<html><body><esi:include src="https://example.com/level1" /></body></html>';
 
-    let errorHandlerCalled = false;
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const urlStr = getUrlString(input);
 
       if (urlStr === "https://example.com/level1") {
@@ -85,27 +92,20 @@ describe("recursion depth", () => {
         );
       }
       return new Response("Not found", { status: 404 });
-    };
-
-    const errorHandler: ErrorHandler = (error) => {
-      if (error.message.includes("recursion depth exceeded")) {
-        errorHandlerCalled = true;
-      }
-      return "";
-    };
+    });
+    globalThis.fetch = mockFetch;
 
     const esi = new Esi({
-      fetchHandler: mockFetch,
       maxDepth: 2,
-      errorHandler,
       shim: true,
     });
-    const result = await esi.parseHtml(html, "https://example.com");
+    const { response, request } = createEsiResponse(html, "https://example.com");
+    const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
     expect(text).toContain("Level 1");
     expect(text).toContain("Level 2");
-    expect(text).not.toContain("Level 3");
-    expect(errorHandlerCalled).toBe(true);
+    // When maxDepth is exceeded, the element remains in HTML
+    expect(text).toContain("<esi-include");
   });
 });

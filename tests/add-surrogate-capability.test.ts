@@ -1,19 +1,28 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Esi } from "../src/index";
 
 describe("Esi.fetch automatically adds Surrogate-Capability", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("should add Surrogate-Capability header to requests", async () => {
     let capturedRequest: Request | null = null;
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       if (input instanceof Request) {
         capturedRequest = input;
       }
       return new Response("OK", {
         headers: { "Content-Type": "text/html" },
       });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch });
+    const esi = new Esi();
     const request = new Request("https://example.com/page");
     await esi.fetch(request);
 
@@ -24,16 +33,17 @@ describe("Esi.fetch automatically adds Surrogate-Capability", () => {
 
   it("should append to existing Surrogate-Capability header", async () => {
     let capturedRequest: Request | null = null;
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       if (input instanceof Request) {
         capturedRequest = input;
       }
       return new Response("OK", {
         headers: { "Content-Type": "text/html" },
       });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch });
+    const esi = new Esi();
     const request = new Request("https://example.com/page", {
       headers: {
         "Surrogate-Capability": 'other-surrogate="ESI/1.0"',
@@ -49,16 +59,17 @@ describe("Esi.fetch automatically adds Surrogate-Capability", () => {
 
   it("should preserve other headers", async () => {
     let capturedRequest: Request | null = null;
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       if (input instanceof Request) {
         capturedRequest = input;
       }
       return new Response("OK", {
         headers: { "Content-Type": "text/html" },
       });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch });
+    const esi = new Esi();
     const request = new Request("https://example.com/page", {
       headers: {
         Authorization: "Bearer token123",

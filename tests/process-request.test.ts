@@ -1,10 +1,18 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Esi } from "../src/index";
 import { getUrlString } from "./helpers";
 
 describe("Esi.fetch", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("should fetch and process ESI includes from a Request", async () => {
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/page") {
         return new Response(
@@ -21,10 +29,10 @@ describe("Esi.fetch", () => {
         return new Response("<p>Processed content</p>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
     const esi = new Esi({
-      fetchHandler: mockFetch,
       shim: true,
     });
 
@@ -37,7 +45,7 @@ describe("Esi.fetch", () => {
   });
 
   it("should return response unchanged if no Surrogate-Control header", async () => {
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/page") {
         return new Response(
@@ -50,10 +58,10 @@ describe("Esi.fetch", () => {
         );
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
     const esi = new Esi({
-      fetchHandler: mockFetch,
       shim: true,
     });
 
@@ -64,10 +72,10 @@ describe("Esi.fetch", () => {
     expect(text).toContain("<esi:include");
   });
 
-  it("should use custom fetch function", async () => {
-    let customFetchCalled = false;
-    const customFetch = async (input: RequestInfo | URL) => {
-      customFetchCalled = true;
+  it("should use fetch function", async () => {
+    let fetchCalled = false;
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
+      fetchCalled = true;
       const url = getUrlString(input);
       if (url === "https://example.com/page") {
         return new Response(
@@ -81,13 +89,13 @@ describe("Esi.fetch", () => {
         );
       }
       if (url === "https://example.com/content") {
-        return new Response("<p>Custom fetch content</p>");
+        return new Response("<p>Fetch content</p>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
     const esi = new Esi({
-      fetchHandler: customFetch,
       shim: true,
     });
 
@@ -95,7 +103,7 @@ describe("Esi.fetch", () => {
     const result = await esi.fetch(request);
     const text = await result.text();
 
-    expect(customFetchCalled).toBe(true);
-    expect(text).toContain("<p>Custom fetch content</p>");
+    expect(fetchCalled).toBe(true);
+    expect(text).toContain("<p>Fetch content</p>");
   });
 });

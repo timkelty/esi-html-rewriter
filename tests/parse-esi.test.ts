@@ -1,22 +1,31 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Esi } from "../src/index";
-import { getUrlString } from "./helpers";
+import { getUrlString, createEsiResponse } from "./helpers";
 
 describe("Esi.parse", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
   it("should replace esi:include with fetched content", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/content" /></body></html>';
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/content") {
         return new Response("<p>Included content</p>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
-    const result = await esi.parseHtml(html, "https://example.com");
+    const esi = new Esi({ shim: true });
+    const { response, request } = createEsiResponse(html, "https://example.com");
+    const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
     expect(text).toContain("<p>Included content</p>");
@@ -34,7 +43,7 @@ describe("Esi.parse", () => {
       </html>
     `;
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/header") {
         return new Response("<header>Header</header>");
@@ -43,10 +52,12 @@ describe("Esi.parse", () => {
         return new Response("<footer>Footer</footer>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
-    const result = await esi.parseHtml(html, "https://example.com");
+    const esi = new Esi({ shim: true });
+    const { response, request } = createEsiResponse(html, "https://example.com");
+    const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
     expect(text).toContain("<header>Header</header>");
@@ -58,63 +69,69 @@ describe("Esi.parse", () => {
   it("should resolve relative URLs using baseUrl", async () => {
     const html = '<html><body><esi:include src="/api/content" /></body></html>';
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/api/content") {
         return new Response("<div>API Content</div>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
     const esi = new Esi({
-      fetchHandler: mockFetch,
       shim: true,
     });
-    const result = await esi.parseHtml(html, "https://example.com");
+    const { response, request } = createEsiResponse(html, "https://example.com");
+    const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
     expect(text).toContain("<div>API Content</div>");
     expect(text).not.toContain("<esi:include");
   });
 
-  it("should remove esi:include tag when src attribute is missing", async () => {
+  it("should keep esi:include tag when src attribute is missing", async () => {
     const html = "<html><body><esi:include /></body></html>";
 
     const esi = new Esi({ shim: true });
-    const result = await esi.parseHtml(html, "https://example.com");
+    const { response, request } = createEsiResponse(html, "https://example.com");
+    const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
-    expect(text).not.toContain("<esi:include");
+    expect(text).toContain("<esi-include");
   });
 
-  it("should remove esi:include tag on fetch error", async () => {
+  it("should keep esi:include tag on fetch error", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/error" /></body></html>';
 
-    const mockFetch = async () => {
+    const mockFetch = vi.fn(async () => {
       throw new Error("Network error");
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
-    const result = await esi.parseHtml(html, "https://example.com");
+    const esi = new Esi({ shim: true });
+    const { response, request } = createEsiResponse(html, "https://example.com");
+    const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
-    expect(text).not.toContain("<esi:include");
+    expect(text).toContain("<esi-include");
   });
 
-  it("should remove esi:include tag when response is not OK", async () => {
+  it("should keep esi:include tag when response is not OK", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/404" /></body></html>';
 
-    const mockFetch = async () => {
+    const mockFetch = vi.fn(async () => {
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
-    const result = await esi.parseHtml(html, "https://example.com");
+    const esi = new Esi({ shim: true });
+    const { response, request } = createEsiResponse(html, "https://example.com");
+    const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
-    expect(text).not.toContain("<esi:include");
+    expect(text).toContain("<esi-include");
   });
 
   it("should handle ReadableStream input", async () => {
@@ -127,16 +144,18 @@ describe("Esi.parse", () => {
       },
     });
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/content") {
         return new Response("<span>Streamed content</span>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
-    const result = await esi.parseHtml(stream, "https://example.com");
+    const esi = new Esi({ shim: true });
+    const { response, request } = createEsiResponse(stream, "https://example.com");
+    const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
     expect(text).toContain("<span>Streamed content</span>");
@@ -155,16 +174,18 @@ describe("Esi.parse", () => {
       </html>
     `;
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/widget") {
         return new Response('<div class="widget">Widget</div>');
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
-    const result = await esi.parseHtml(html, "https://example.com");
+    const esi = new Esi({ shim: true });
+    const { response, request } = createEsiResponse(html, "https://example.com");
+    const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
     expect(text).toContain("<title>Test</title>");
@@ -176,7 +197,7 @@ describe("Esi.parse", () => {
     const html =
       '<html><body><esi:include src="https://example.com/html" /></body></html>';
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/html") {
         return new Response(
@@ -184,10 +205,12 @@ describe("Esi.parse", () => {
         );
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
-    const result = await esi.parseHtml(html, "https://example.com");
+    const esi = new Esi({ shim: true });
+    const { response, request } = createEsiResponse(html, "https://example.com");
+    const result = await esi.parseResponse(response, request);
     const text = await result.text();
 
     expect(text).toContain("<h1>Title</h1>");

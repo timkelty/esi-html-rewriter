@@ -1,8 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Esi } from "../src/index";
 import { getUrlString } from "./helpers";
 
 describe("Esi.parse with Response", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
   it("should process ESI includes in a Response with Surrogate-Control header", async () => {
     const originalResponse = new Response(
       '<html><body><esi:include src="https://example.com/content" /></body></html>',
@@ -18,22 +25,20 @@ describe("Esi.parse with Response", () => {
       writable: false,
     });
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/content") {
         return new Response("<p>Processed content</p>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
     const esi = new Esi({
-      fetchHandler: mockFetch,
       shim: true,
     });
-    const result = await esi.parseResponse(
-      originalResponse,
-      originalResponse.url || "https://example.com/page",
-    );
+    const request = new Request(originalResponse.url || "https://example.com/page");
+    const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -49,10 +54,8 @@ describe("Esi.parse with Response", () => {
     );
 
     const esi = new Esi();
-    const result = await esi.parseResponse(
-      originalResponse,
-      originalResponse.url || "https://example.com/page",
-    );
+    const request = new Request(originalResponse.url || "https://example.com/page");
+    const result = await esi.parseResponse(originalResponse, request);
 
     // Should return the original response unchanged
     expect(result).toBe(originalResponse);
@@ -75,19 +78,18 @@ describe("Esi.parse with Response", () => {
       writable: false,
     });
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/content") {
         return new Response("<p>Processed content</p>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
-    const result = await esi.parseResponse(
-      originalResponse,
-      originalResponse.url || "https://example.com/page",
-    );
+    const esi = new Esi({ shim: true });
+    const request = new Request(originalResponse.url || "https://example.com/page");
+    const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -106,10 +108,8 @@ describe("Esi.parse with Response", () => {
     );
 
     const esi = new Esi();
-    const result = await esi.parseResponse(
-      originalResponse,
-      originalResponse.url || "https://example.com/page",
-    );
+    const request = new Request(originalResponse.url || "https://example.com/page");
+    const result = await esi.parseResponse(originalResponse, request);
 
     // Should return the original response unchanged
     expect(result).toBe(originalResponse);
@@ -132,19 +132,18 @@ describe("Esi.parse with Response", () => {
       writable: false,
     });
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/content") {
         return new Response("<p>Processed content</p>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
-    const result = await esi.parseResponse(
-      originalResponse,
-      originalResponse.url || "https://example.com/page",
-    );
+    const esi = new Esi({ shim: true });
+    const request = new Request(originalResponse.url || "https://example.com/page");
+    const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -166,23 +165,21 @@ describe("Esi.parse with Response", () => {
       writable: false,
     });
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/content") {
         return new Response("<p>Processed content</p>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
     const esi = new Esi({
-      fetchHandler: mockFetch,
       contentTypes: ["text/xhtml", "text/html"],
       shim: true,
     });
-    const result = await esi.parseResponse(
-      originalResponse,
-      originalResponse.url || "https://example.com/page",
-    );
+    const request = new Request(originalResponse.url || "https://example.com/page");
+    const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -203,10 +200,8 @@ describe("Esi.parse with Response", () => {
     const esi = new Esi({
       contentTypes: ["text/xhtml"],
     });
-    const result = await esi.parseResponse(
-      originalResponse,
-      originalResponse.url || "https://example.com/page",
-    );
+    const request = new Request(originalResponse.url || "https://example.com/page");
+    const result = await esi.parseResponse(originalResponse, request);
 
     // Should return the original response unchanged
     expect(result).toBe(originalResponse);
@@ -229,19 +224,18 @@ describe("Esi.parse with Response", () => {
       writable: false,
     });
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/content") {
         return new Response("<p>Processed content</p>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
-    const esi = new Esi({ fetchHandler: mockFetch, shim: true });
-    const result = await esi.parseResponse(
-      originalResponse,
-      originalResponse.url || "https://example.com/page",
-    );
+    const esi = new Esi({ shim: true });
+    const request = new Request(originalResponse.url || "https://example.com/page");
+    const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -263,24 +257,23 @@ describe("Esi.parse with Response", () => {
       writable: false,
     });
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://example.com/page/api/data") {
         return new Response("<data>Data</data>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
     const esi = new Esi({
-      fetchHandler: mockFetch,
       shim: true,
     });
-    const result = await esi.parseResponse(
-      originalResponse,
-      originalResponse.url || "https://example.com/page/",
-    );
+    const request = new Request(originalResponse.url || "https://example.com/page/");
+    const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
+    // Relative URL should be resolved correctly using request URL
     expect(text).toContain("<data>Data</data>");
   });
 
@@ -288,10 +281,8 @@ describe("Esi.parse with Response", () => {
     const originalResponse = new Response(null, { status: 204 });
 
     const esi = new Esi();
-    const result = await esi.parseResponse(
-      originalResponse,
-      originalResponse.url || "https://example.com/page",
-    );
+    const request = new Request(originalResponse.url || "https://example.com/page");
+    const result = await esi.parseResponse(originalResponse, request);
 
     expect(result).toBe(originalResponse);
   });
@@ -311,22 +302,20 @@ describe("Esi.parse with Response", () => {
       writable: false,
     });
 
-    const mockFetch = async (input: RequestInfo | URL) => {
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = getUrlString(input);
       if (url === "https://api.example.com/api/data") {
         return new Response("<data>API Data</data>");
       }
       return new Response("Not found", { status: 404 });
-    };
+    });
+    globalThis.fetch = mockFetch;
 
     const esi = new Esi({
-      fetchHandler: mockFetch,
       shim: true,
     });
-    const result = await esi.parseResponse(
-      originalResponse,
-      originalResponse.url || "https://example.com/page",
-    );
+    const request = new Request(originalResponse.url || "https://example.com/page");
+    const result = await esi.parseResponse(originalResponse, request);
     const text = await result.text();
 
     expect(text).toContain("<data>API Data</data>");
