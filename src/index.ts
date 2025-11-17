@@ -188,8 +188,14 @@ export class Esi {
       if (!esiResponse.ok) {
         throw new Error("ESI include response not OK", {
           cause: {
-            request: esiRequest,
-            response: esiResponse,
+            request: {
+              url: esiRequest.url,
+              headers: esiRequest.headers.entries(),
+            },
+            response: {
+              status: esiResponse.status,
+              headers: esiResponse.headers.entries(),
+            },
           },
         });
       }
