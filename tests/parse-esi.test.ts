@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Esi } from "../src/index";
 import { getUrlString, createEsiResponse } from "./helpers";
 
-describe("Esi.parse", () => {
+describe("Esi.parseResponse", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
   });
@@ -28,7 +28,7 @@ describe("Esi.parse", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("<p>Included content</p>");
@@ -63,7 +63,7 @@ describe("Esi.parse", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("<header>Header</header>");
@@ -91,7 +91,7 @@ describe("Esi.parse", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("<div>API Content</div>");
@@ -106,7 +106,7 @@ describe("Esi.parse", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).not.toContain("<esi-include");
@@ -126,7 +126,7 @@ describe("Esi.parse", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).not.toContain("<esi-include");
@@ -146,7 +146,7 @@ describe("Esi.parse", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).not.toContain("<esi-include");
@@ -176,7 +176,7 @@ describe("Esi.parse", () => {
       stream,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("<span>Streamed content</span>");
@@ -209,7 +209,7 @@ describe("Esi.parse", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("<title>Test</title>");
@@ -237,7 +237,7 @@ describe("Esi.parse", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("<h1>Title</h1>");

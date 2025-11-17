@@ -31,7 +31,7 @@ describe("allowedUrlPatterns", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("<data>API Data</data>");
@@ -55,7 +55,7 @@ describe("allowedUrlPatterns", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).not.toContain("Should not be fetched");
@@ -63,7 +63,7 @@ describe("allowedUrlPatterns", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("should allow URLs matching string pattern", async () => {
+  it("should allow URLs matching URLPattern with origin", async () => {
     const html =
       '<html><body><esi:include src="https://trusted.com/data" /></body></html>';
 
@@ -77,14 +77,16 @@ describe("allowedUrlPatterns", () => {
     globalThis.fetch = mockFetch;
 
     const esi = new Esi({
-      allowedUrlPatterns: ["https://trusted.com/*"],
+      allowedUrlPatterns: [
+        new URLPattern({ origin: "https://trusted.com", pathname: "/*" }),
+      ],
       shim: true,
     });
     const { response, request } = createEsiResponse(
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("<data>Trusted Data</data>");
@@ -111,7 +113,7 @@ describe("allowedUrlPatterns", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("<data>Any Data</data>");
@@ -142,7 +144,7 @@ describe("allowedUrlPatterns", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("<file>Static File</file>");

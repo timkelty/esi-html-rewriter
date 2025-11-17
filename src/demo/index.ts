@@ -41,7 +41,7 @@ export default {
         shim: true,
       });
 
-      return esi.parseResponse(response, request);
+      return esi.parseResponse(response, [request]);
     }
 
     if (url.pathname.startsWith("/api/")) {

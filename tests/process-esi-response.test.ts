@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Esi } from "../src/index";
 import { getUrlString } from "./helpers";
 
-describe("Esi.parse with Response", () => {
+describe("Esi.parseResponse with Response", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
   });
@@ -40,7 +40,7 @@ describe("Esi.parse with Response", () => {
     const request = new Request(
       originalResponse.url || "https://example.com/page",
     );
-    const result = await esi.parseResponse(originalResponse, request);
+    const result = await esi.parseResponse(originalResponse, [request]);
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -59,7 +59,7 @@ describe("Esi.parse with Response", () => {
     const request = new Request(
       originalResponse.url || "https://example.com/page",
     );
-    const result = await esi.parseResponse(originalResponse, request);
+    const result = await esi.parseResponse(originalResponse, [request]);
 
     // Should return the original response unchanged
     expect(result).toBe(originalResponse);
@@ -95,7 +95,7 @@ describe("Esi.parse with Response", () => {
     const request = new Request(
       originalResponse.url || "https://example.com/page",
     );
-    const result = await esi.parseResponse(originalResponse, request);
+    const result = await esi.parseResponse(originalResponse, [request]);
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -117,7 +117,7 @@ describe("Esi.parse with Response", () => {
     const request = new Request(
       originalResponse.url || "https://example.com/page",
     );
-    const result = await esi.parseResponse(originalResponse, request);
+    const result = await esi.parseResponse(originalResponse, [request]);
 
     // Should return the original response unchanged
     expect(result).toBe(originalResponse);
@@ -153,7 +153,7 @@ describe("Esi.parse with Response", () => {
     const request = new Request(
       originalResponse.url || "https://example.com/page",
     );
-    const result = await esi.parseResponse(originalResponse, request);
+    const result = await esi.parseResponse(originalResponse, [request]);
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -191,7 +191,7 @@ describe("Esi.parse with Response", () => {
     const request = new Request(
       originalResponse.url || "https://example.com/page",
     );
-    const result = await esi.parseResponse(originalResponse, request);
+    const result = await esi.parseResponse(originalResponse, [request]);
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -215,7 +215,7 @@ describe("Esi.parse with Response", () => {
     const request = new Request(
       originalResponse.url || "https://example.com/page",
     );
-    const result = await esi.parseResponse(originalResponse, request);
+    const result = await esi.parseResponse(originalResponse, [request]);
 
     // Should return the original response unchanged
     expect(result).toBe(originalResponse);
@@ -251,7 +251,7 @@ describe("Esi.parse with Response", () => {
     const request = new Request(
       originalResponse.url || "https://example.com/page",
     );
-    const result = await esi.parseResponse(originalResponse, request);
+    const result = await esi.parseResponse(originalResponse, [request]);
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -288,7 +288,7 @@ describe("Esi.parse with Response", () => {
     const request = new Request(
       originalResponse.url || "https://example.com/page/",
     );
-    const result = await esi.parseResponse(originalResponse, request);
+    const result = await esi.parseResponse(originalResponse, [request]);
     const text = await result.text();
 
     // Relative URL should be resolved correctly using request URL
@@ -302,7 +302,7 @@ describe("Esi.parse with Response", () => {
     const request = new Request(
       originalResponse.url || "https://example.com/page",
     );
-    const result = await esi.parseResponse(originalResponse, request);
+    const result = await esi.parseResponse(originalResponse, [request]);
 
     expect(result).toBe(originalResponse);
   });
@@ -337,7 +337,7 @@ describe("Esi.parse with Response", () => {
     const request = new Request(
       originalResponse.url || "https://example.com/page",
     );
-    const result = await esi.parseResponse(originalResponse, request);
+    const result = await esi.parseResponse(originalResponse, [request]);
     const text = await result.text();
 
     expect(text).toContain("<data>API Data</data>");

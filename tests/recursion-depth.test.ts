@@ -56,7 +56,7 @@ describe("recursion depth", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("Level 1");
@@ -106,7 +106,7 @@ describe("recursion depth", () => {
       html,
       "https://example.com",
     );
-    const result = await esi.parseResponse(response, request);
+    const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
     expect(text).toContain("Level 1");

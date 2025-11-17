@@ -1,4 +1,4 @@
-import { serializeError, isErrorLike } from "serialize-error";
+import { serializeError } from "serialize-error";
 
 function hasEsiSurrogateControl(response: Response): boolean {
   const surrogateControl = response.headers.get("Surrogate-Control");
@@ -44,28 +44,36 @@ function addSurrogateCapability(
   return new Request(clonedRequest, { headers });
 }
 
-function matchesUrlPattern(
-  url: string,
-  patterns: (URLPattern | string)[],
-): boolean {
+function matchesUrlPattern(url: string, patterns: URLPattern[]): boolean {
   try {
     const urlObj = new URL(url);
-
-    return patterns.some((pattern) => {
-      if (typeof pattern === "string") {
-        try {
-          const urlPattern = new URLPattern(pattern);
-          return urlPattern.test(urlObj);
-        } catch {
-          return url.startsWith(pattern.replace("*", ""));
-        }
-      } else {
-        return pattern.test(urlObj);
-      }
-    });
+    return patterns.some((pattern) => pattern.test(urlObj));
   } catch {
     return false;
   }
+}
+
+function shouldDelegateToSurrogate(
+  request: Request,
+  surrogateDelegation: boolean | string[],
+): boolean {
+  if (!surrogateDelegation) {
+    return false;
+  }
+
+  const surrogateCapability = request.headers.get("Surrogate-Capability");
+  if (!surrogateCapability || !/ESI\/1\.0/i.test(surrogateCapability)) {
+    return false;
+  }
+
+  if (Array.isArray(surrogateDelegation)) {
+    const cfConnectingIp = request.headers.get("CF-Connecting-IP");
+    return (
+      cfConnectingIp !== null && surrogateDelegation.includes(cfConnectingIp)
+    );
+  }
+
+  return true;
 }
 
 function shimEsiTags(html: string, tag: string): string {
@@ -75,10 +83,8 @@ function shimEsiTags(html: string, tag: string): string {
     .replace(/<\/esi:include>/gi, `</${tag}>`);
 }
 
-function log(
-  value: unknown,
-  level: "error" | "warn" | "info" | "log" = "log") {
-  console[level]('[esi-html-rewriter]', serializeError(value));
+function log(value: unknown, level: "error" | "warn" | "info" | "log" = "log") {
+  console[level]("[esi-html-rewriter]", serializeError(value));
 }
 
 export interface EsiOptions {
@@ -87,6 +93,13 @@ export interface EsiOptions {
   allowedUrlPatterns: URLPattern[];
   shim: boolean;
   onError?: (error: unknown, element: Element) => void;
+  /**
+   * Surrogate Delegation - if true and the request has valid Surrogate-Capability headers
+   * indicating a downstream surrogate can handle ESI, the response will be returned without processing.
+   * If an array of strings, each string is treated as an IP address. Delegation only occurs if
+   * the connecting IP (CF-Connecting-IP) matches one of the provided IPs.
+   */
+  surrogateDelegation?: boolean | string[];
 }
 
 export class Esi {
@@ -95,14 +108,14 @@ export class Esi {
   public readonly allowedUrlPatterns: URLPattern[];
   public readonly shim: boolean;
   private readonly onError: (error: unknown, element: Element) => void;
+  private readonly surrogateDelegation: boolean | string[];
 
   constructor(options: Partial<EsiOptions> = {}) {
     this.maxDepth = options.maxDepth ?? 3;
     this.contentTypes = options.contentTypes ?? ["text/html"];
-    this.allowedUrlPatterns = options.allowedUrlPatterns ?? [
-      new URLPattern(),
-    ];
+    this.allowedUrlPatterns = options.allowedUrlPatterns ?? [new URLPattern()];
     this.shim = options.shim ?? false;
+    this.surrogateDelegation = options.surrogateDelegation ?? false;
     this.onError =
       options.onError ??
       ((error: unknown, element: Element) => {
@@ -115,26 +128,25 @@ export class Esi {
     response: Response,
     context: Request[] = [],
   ): Promise<Response> {
-    
-    const parentRequest = context.at(-1);
+    const parentRequest = context[context.length - 1];
 
     if (!parentRequest) {
       throw new Error("Request context is required");
     }
-    
-    if (context.length >= this.maxDepth) {      
+
+    // Subtract the initial request
+    const nestedDepth = context.length - 1;
+
+    if (nestedDepth > this.maxDepth) {
       return response;
     }
 
-    if (!response.body) {
-      return response;
-    }
-
-    if (!hasEsiSurrogateControl(response)) {
-      return response;
-    }
-
-    if (!hasAllowedContentType(response, this.contentTypes)) {
+    if (
+      !response.body ||
+      shouldDelegateToSurrogate(parentRequest, this.surrogateDelegation) ||
+      !hasEsiSurrogateControl(response) ||
+      !hasAllowedContentType(response, this.contentTypes)
+    ) {
       return response;
     }
 
@@ -144,7 +156,7 @@ export class Esi {
     if (this.shim) {
       selector = "esi-include";
 
-      // Ensure we have a consumuable body for parsing
+      // Ensure we have a consumable body for parsing
       responseToParse = new Response(
         shimEsiTags(await responseToParse.text(), selector),
         response,
@@ -157,25 +169,22 @@ export class Esi {
       if (!src) {
         throw new Error("ESI include src attribute is required");
       }
-  
+
       const esiUrl = new URL(src, parentRequest.url);
       const isSameOrigin = new URL(parentRequest.url).origin === esiUrl.origin;
       const headers = isSameOrigin ? parentRequest.headers : new Headers();
       const esiRequest = new Request(esiUrl, {
         headers,
       });
-    
+
       if (!matchesUrlPattern(esiRequest.url, this.allowedUrlPatterns)) {
         throw new Error("ESI include URL not allowed", {
           cause: { url: esiRequest.url },
         });
       }
-  
-      const esiResponse = await this.fetch(esiRequest, [
-        ...context,
-        parentRequest,
-      ]);
-  
+
+      const esiResponse = await this.fetch(esiRequest, context);
+
       if (!esiResponse.ok) {
         throw new Error("ESI include response not OK", {
           cause: {
@@ -184,9 +193,9 @@ export class Esi {
           },
         });
       }
-  
-      element.replace(await esiResponse.text(), { html: true });  
-    }
+
+      element.replace(await esiResponse.text(), { html: true });
+    };
 
     return new HTMLRewriter()
       .on(selector, {
@@ -201,11 +210,9 @@ export class Esi {
       .transform(responseToParse);
   }
 
-  async fetch(
-    request: Request,
-    context: Request[] = [],
-  ): Promise<Response> {
-    const response = await fetch(request);
+  async fetch(request: Request, context: Request[] = []): Promise<Response> {
+    const requestWithCapability = addSurrogateCapability(request);
+    const response = await fetch(requestWithCapability);
     return this.parseResponse(response, [...context, request]);
   }
 }

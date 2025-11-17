@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Esi } from "../src/index";
 
-describe("Esi.fetch automatically adds Surrogate-Capability", () => {
+describe("Esi.fetch", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
   });
@@ -10,7 +10,7 @@ describe("Esi.fetch automatically adds Surrogate-Capability", () => {
     vi.unstubAllGlobals();
   });
 
-  it("should add Surrogate-Capability header to requests", async () => {
+  it("should pass request as-is to fetch", async () => {
     let capturedRequest: Request | null = null;
     const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       if (input instanceof Request) {
@@ -27,11 +27,13 @@ describe("Esi.fetch automatically adds Surrogate-Capability", () => {
     await esi.fetch(request);
 
     expect(capturedRequest).not.toBeNull();
-    const capability = capturedRequest!.headers.get("Surrogate-Capability");
-    expect(capability).toBe('cloudflare-workers="ESI/1.0"');
+    expect(capturedRequest!.url).toBe("https://example.com/page");
+    expect(capturedRequest!.headers.get("Surrogate-Capability")).toBe(
+      'cloudflare-workers="ESI/1.0"',
+    );
   });
 
-  it("should append to existing Surrogate-Capability header", async () => {
+  it("should preserve existing Surrogate-Capability header if present", async () => {
     let capturedRequest: Request | null = null;
     const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
       if (input instanceof Request) {
