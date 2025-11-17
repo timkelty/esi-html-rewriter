@@ -1,4 +1,4 @@
-import { serializeError } from "serialize-error";
+import { serializeError, isErrorLike } from "serialize-error";
 
 function hasEsiSurrogateControl(response: Response): boolean {
   const surrogateControl = response.headers.get("Surrogate-Control");
@@ -75,17 +75,18 @@ function shimEsiTags(html: string, tag: string): string {
     .replace(/<\/esi:include>/gi, `</${tag}>`);
 }
 
-function logError(error: unknown) {
-  console.error("[esi-html-rewriter]", serializeError(error));
+function log(
+  value: unknown,
+  level: "error" | "warn" | "info" | "log" = "log") {
+  console[level]('[esi-html-rewriter]', serializeError(value));
 }
 
 export interface EsiOptions {
-  contentTypes?: string[];
-  maxDepth?: number;
+  contentTypes: string[];
+  maxDepth: number;
   allowedUrlPatterns?: (URLPattern | string)[];
-  shim?: boolean;
+  shim: boolean;
   onError?: (error: unknown, element: Element) => void;
-  fetch?: (request: Request, requestContext: Request[]) => Promise<Response>;
 }
 
 export class Esi {
@@ -94,32 +95,35 @@ export class Esi {
   public readonly allowedUrlPatterns: (URLPattern | string)[] | undefined;
   public readonly shim: boolean;
   private readonly onError: (error: unknown, element: Element) => void;
-  private readonly fetchHandler: (
-    request: Request,
-    requestContext: Request[],
-  ) => Promise<Response>;
 
-  constructor(options: EsiOptions = {}) {
+  constructor(options: Partial<EsiOptions> = {}) {
     this.maxDepth = options.maxDepth ?? 3;
-    this.contentTypes = options.contentTypes || ["text/html"];
+    this.contentTypes = options.contentTypes ?? ["text/html"];
     this.allowedUrlPatterns = options.allowedUrlPatterns;
     this.shim = options.shim ?? false;
     this.onError =
       options.onError ??
       ((error: unknown, element: Element) => {
         element.remove();
-        logError(error);
+        log(error);
       });
-    this.fetchHandler =
-      options.fetch ??
-      ((request: Request, requestContext: Request[]) => fetch(request));
   }
 
   async parseResponse(
     response: Response,
-    request: Request,
-    requestContext: Request[] = [],
+    context: Request[] = [],
   ): Promise<Response> {
+    
+    const parentRequest = context.at(-1);
+
+    if (!parentRequest) {
+      throw new Error("Request context is required");
+    }
+    
+    if (context.length >= this.maxDepth) {      
+      return response;
+    }
+
     if (!response.body) {
       return response;
     }
@@ -137,17 +141,64 @@ export class Esi {
 
     if (this.shim) {
       selector = "esi-include";
+
+      // Ensure we have a consumuable body for parsing
       responseToParse = new Response(
-        shimEsiTags(await response.text(), selector),
+        shimEsiTags(await responseToParse.text(), selector),
         response,
       );
+    }
+
+    const onEsiElement = async (element: Element) => {
+      const src = element.getAttribute("src");
+
+      if (!src) {
+        throw new Error("ESI include src attribute is required");
+      }
+  
+      // TODO: test what happens with no parentRequest and a root relative URL
+      const baseUrl = new URL(src, parentRequest?.url);
+      const esiRequest = new Request(baseUrl);
+  
+      if (context.length >= this.maxDepth) {
+        throw new Error(`ESI recursion depth exceeded`, {
+          cause: {
+            url: esiRequest.url,
+            maxDepth: this.maxDepth,
+          },
+        });
+      }
+  
+      if (this.allowedUrlPatterns && this.allowedUrlPatterns.length > 0) {
+        if (!matchesUrlPattern(esiRequest.url, this.allowedUrlPatterns)) {
+          throw new Error("ESI include URL not allowed", {
+            cause: { url: esiRequest.url },
+          });
+        }
+      }
+  
+      const esiResponse = await this.fetch(esiRequest, [
+        ...context,
+        parentRequest,
+      ]);
+  
+      if (!esiResponse.ok) {
+        throw new Error("ESI fetch failed", {
+          cause: {
+            request: esiRequest,
+            response: esiResponse,
+          },
+        });
+      }
+  
+      element.replace(await esiResponse.text(), { html: true });  
     }
 
     return new HTMLRewriter()
       .on(selector, {
         element: async (element: Element) => {
           try {
-            await this.handleEsiInclude(element, request, requestContext);
+            await onEsiElement(element);
           } catch (error) {
             this.onError(error, element);
           }
@@ -156,63 +207,11 @@ export class Esi {
       .transform(responseToParse);
   }
 
-  private async handleEsiInclude(
-    element: Element,
-    request: Request,
-    requestContext: Request[],
-  ): Promise<void> {
-    const src = element.getAttribute("src");
-
-    if (!src) {
-      throw new Error("ESI include src attribute is required");
-    }
-
-    const esiRequest = new Request(new URL(src, request.url), { ...request });
-
-    if (requestContext.length >= this.maxDepth) {
-      throw new Error(`ESI recursion depth exceeded`, {
-        cause: {
-          url: esiRequest.url,
-          maxDepth: this.maxDepth,
-        },
-      });
-    }
-
-    if (this.allowedUrlPatterns && this.allowedUrlPatterns.length > 0) {
-      if (!matchesUrlPattern(esiRequest.url, this.allowedUrlPatterns)) {
-        throw new Error("ESI include URL not allowed", {
-          cause: { url: esiRequest.url },
-        });
-      }
-    }
-
-    const esiResponse = await this.fetch(esiRequest, [
-      ...requestContext,
-      request,
-    ]);
-
-    if (!esiResponse.ok) {
-      throw new Error("ESI fetch failed", {
-        cause: {
-          url: esiRequest.url,
-          status: esiResponse.status,
-          statusText: esiResponse.statusText,
-        },
-      });
-    }
-
-    element.replace(await esiResponse.text(), { html: true });
-  }
-
   async fetch(
     request: Request,
-    requestContext: Request[] = [],
+    context: Request[] = [],
   ): Promise<Response> {
-    const requestWithCapability = addSurrogateCapability(request);
-    const response = await this.fetchHandler(
-      requestWithCapability,
-      requestContext,
-    );
-    return this.parseResponse(response, request, requestContext);
+    const response = await fetch(request);
+    return this.parseResponse(response, [...context, request]);
   }
 }
