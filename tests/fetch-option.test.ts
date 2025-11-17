@@ -15,14 +15,16 @@ describe("fetch option", () => {
     const html =
       '<html><body><esi:include src="https://example.com/content" /></body></html>';
 
-    const customFetch = vi.fn(async (request: Request) => {
-      if (request.url === "https://example.com/content") {
-        return new Response("<p>Custom fetch content</p>", {
-          headers: { "Content-Type": "text/html" },
-        });
-      }
-      return new Response("Not found", { status: 404 });
-    });
+    const customFetch = vi.fn(
+      async (request: Request, _requestContext: Request[]) => {
+        if (request.url === "https://example.com/content") {
+          return new Response("<p>Custom fetch content</p>", {
+            headers: { "Content-Type": "text/html" },
+          });
+        }
+        return new Response("Not found", { status: 404 });
+      },
+    );
 
     const esi = new Esi({ shim: true, fetch: customFetch });
     const { response, request } = createEsiResponse(
@@ -37,14 +39,17 @@ describe("fetch option", () => {
     expect(text).not.toContain("<esi-include");
   });
 
-  it("should pass depth parameter to custom fetch handler", async () => {
+  it("should pass requestContext array to custom fetch handler", async () => {
     const html =
       '<html><body><esi:include src="https://example.com/level1" /></body></html>';
 
-    const depthValues: number[] = [];
+    const requestContextArrays: Request[][] = [];
     const customFetch = vi.fn(
-      async (request: Request, depth: number): Promise<Response> => {
-        depthValues.push(depth);
+      async (
+        request: Request,
+        requestContext: Request[],
+      ): Promise<Response> => {
+        requestContextArrays.push(requestContext);
         if (request.url.includes("level1")) {
           return new Response(
             '<esi:include src="https://example.com/level2" />',
@@ -73,8 +78,9 @@ describe("fetch option", () => {
     const result = await esi.parseResponse(response, request);
     await result.text();
 
-    expect(depthValues).toContain(1);
-    expect(depthValues).toContain(2);
+    expect(requestContextArrays.length).toBeGreaterThan(0);
+    expect(requestContextArrays[0].length).toBe(1);
+    expect(requestContextArrays.some((arr) => arr.length === 2)).toBe(true);
   });
 
   it("should use default fetch when not provided", async () => {
@@ -110,12 +116,14 @@ describe("fetch option", () => {
       '<html><body><esi:include src="https://example.com/content" /></body></html>';
 
     let capturedRequest: Request | null = null;
-    const customFetch = vi.fn(async (request: Request) => {
-      capturedRequest = request.clone();
-      return new Response("<p>Content</p>", {
-        headers: { "Content-Type": "text/html" },
-      });
-    });
+    const customFetch = vi.fn(
+      async (request: Request, _requestContext: Request[]) => {
+        capturedRequest = request.clone();
+        return new Response("<p>Content</p>", {
+          headers: { "Content-Type": "text/html" },
+        });
+      },
+    );
 
     const esi = new Esi({ shim: true, fetch: customFetch });
     const { response, request } = createEsiResponse(
@@ -136,9 +144,11 @@ describe("fetch option", () => {
     const html =
       '<html><body><esi:include src="https://example.com/error" /></body></html>';
 
-    const customFetch = vi.fn(async () => {
-      throw new Error("Custom fetch error");
-    });
+    const customFetch = vi.fn(
+      async (_request: Request, _requestContext: Request[]) => {
+        throw new Error("Custom fetch error");
+      },
+    );
 
     const onError = vi.fn((error: unknown, element: Element) => {
       element.remove();
@@ -159,4 +169,3 @@ describe("fetch option", () => {
     expect(text).not.toContain("<esi-include");
   });
 });
-

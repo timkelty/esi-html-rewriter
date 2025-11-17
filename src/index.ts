@@ -76,7 +76,7 @@ function shimEsiTags(html: string, tag: string): string {
 }
 
 function logError(error: unknown) {
-  console.error('[esi-html-rewriter]', serializeError(error))
+  console.error("[esi-html-rewriter]", serializeError(error));
 }
 
 export interface EsiOptions {
@@ -85,7 +85,7 @@ export interface EsiOptions {
   allowedUrlPatterns?: (URLPattern | string)[];
   shim?: boolean;
   onError?: (error: unknown, element: Element) => void;
-  fetch?: (request: Request, depth: number) => Promise<Response>;
+  fetch?: (request: Request, requestContext: Request[]) => Promise<Response>;
 }
 
 export class Esi {
@@ -96,7 +96,7 @@ export class Esi {
   private readonly onError: (error: unknown, element: Element) => void;
   private readonly fetchHandler: (
     request: Request,
-    depth: number,
+    requestContext: Request[],
   ) => Promise<Response>;
 
   constructor(options: EsiOptions = {}) {
@@ -112,13 +112,14 @@ export class Esi {
       });
     this.fetchHandler =
       options.fetch ??
-      (async (request: Request) => await fetch(request));
+      (async (request: Request, requestContext: Request[]) =>
+        await fetch(request));
   }
 
   async parseResponse(
     response: Response,
     request: Request,
-    depth: number = 0,
+    requestContext: Request[] = [],
   ): Promise<Response> {
     if (!response.body) {
       return response;
@@ -147,7 +148,7 @@ export class Esi {
       .on(selector, {
         element: async (element: Element) => {
           try {
-            await this.handleEsiInclude(element, request, depth);
+            await this.handleEsiInclude(element, request, requestContext);
           } catch (error) {
             this.onError(error, element);
           }
@@ -159,7 +160,7 @@ export class Esi {
   private async handleEsiInclude(
     element: Element,
     request: Request,
-    depth: number,
+    requestContext: Request[],
   ): Promise<void> {
     const src = element.getAttribute("src");
 
@@ -167,16 +168,16 @@ export class Esi {
       throw new Error("ESI include src attribute is required");
     }
 
-    if (depth >= this.maxDepth) {
+    const esiRequest = new Request(new URL(src, request.url), { ...request });
+
+    if (requestContext.length >= this.maxDepth) {
       throw new Error(`ESI recursion depth exceeded`, {
         cause: {
-          url: new URL(src, request.url).toString(),
+          url: esiRequest.url,
           maxDepth: this.maxDepth,
         },
       });
     }
-
-    const esiRequest = new Request(new URL(src, request.url), { ...request });
 
     if (this.allowedUrlPatterns && this.allowedUrlPatterns.length > 0) {
       if (!matchesUrlPattern(esiRequest.url, this.allowedUrlPatterns)) {
@@ -186,7 +187,10 @@ export class Esi {
       }
     }
 
-    const esiResponse = await this.fetch(esiRequest, depth + 1);
+    const esiResponse = await this.fetch(esiRequest, [
+      ...requestContext,
+      request,
+    ]);
 
     if (!esiResponse.ok) {
       throw new Error("ESI fetch failed", {
@@ -201,9 +205,15 @@ export class Esi {
     element.replace(await esiResponse.text(), { html: true });
   }
 
-  async fetch(request: Request, depth: number = 0): Promise<Response> {
+  async fetch(
+    request: Request,
+    requestContext: Request[] = [],
+  ): Promise<Response> {
     const requestWithCapability = addSurrogateCapability(request);
-    const response = await this.fetchHandler(requestWithCapability, depth);
-    return this.parseResponse(response, request, depth);
+    const response = await this.fetchHandler(
+      requestWithCapability,
+      requestContext,
+    );
+    return this.parseResponse(response, request, requestContext);
   }
 }
