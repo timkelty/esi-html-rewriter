@@ -84,7 +84,7 @@ function log(
 export interface EsiOptions {
   contentTypes: string[];
   maxDepth: number;
-  allowedUrlPatterns?: (URLPattern | string)[];
+  allowedUrlPatterns: URLPattern[];
   shim: boolean;
   onError?: (error: unknown, element: Element) => void;
 }
@@ -92,14 +92,16 @@ export interface EsiOptions {
 export class Esi {
   public readonly contentTypes: string[];
   public readonly maxDepth: number;
-  public readonly allowedUrlPatterns: (URLPattern | string)[] | undefined;
+  public readonly allowedUrlPatterns: URLPattern[];
   public readonly shim: boolean;
   private readonly onError: (error: unknown, element: Element) => void;
 
   constructor(options: Partial<EsiOptions> = {}) {
     this.maxDepth = options.maxDepth ?? 3;
     this.contentTypes = options.contentTypes ?? ["text/html"];
-    this.allowedUrlPatterns = options.allowedUrlPatterns;
+    this.allowedUrlPatterns = options.allowedUrlPatterns ?? [
+      new URLPattern(),
+    ];
     this.shim = options.shim ?? false;
     this.onError =
       options.onError ??
@@ -156,25 +158,17 @@ export class Esi {
         throw new Error("ESI include src attribute is required");
       }
   
-      // TODO: test what happens with no parentRequest and a root relative URL
-      const baseUrl = new URL(src, parentRequest?.url);
-      const esiRequest = new Request(baseUrl);
-  
-      if (context.length >= this.maxDepth) {
-        throw new Error(`ESI recursion depth exceeded`, {
-          cause: {
-            url: esiRequest.url,
-            maxDepth: this.maxDepth,
-          },
+      const esiUrl = new URL(src, parentRequest.url);
+      const isSameOrigin = new URL(parentRequest.url).origin === esiUrl.origin;
+      const headers = isSameOrigin ? parentRequest.headers : new Headers();
+      const esiRequest = new Request(esiUrl, {
+        headers,
+      });
+    
+      if (!matchesUrlPattern(esiRequest.url, this.allowedUrlPatterns)) {
+        throw new Error("ESI include URL not allowed", {
+          cause: { url: esiRequest.url },
         });
-      }
-  
-      if (this.allowedUrlPatterns && this.allowedUrlPatterns.length > 0) {
-        if (!matchesUrlPattern(esiRequest.url, this.allowedUrlPatterns)) {
-          throw new Error("ESI include URL not allowed", {
-            cause: { url: esiRequest.url },
-          });
-        }
       }
   
       const esiResponse = await this.fetch(esiRequest, [
@@ -183,7 +177,7 @@ export class Esi {
       ]);
   
       if (!esiResponse.ok) {
-        throw new Error("ESI fetch failed", {
+        throw new Error("ESI include response not OK", {
           cause: {
             request: esiRequest,
             response: esiResponse,
