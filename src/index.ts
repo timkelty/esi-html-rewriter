@@ -112,8 +112,7 @@ export class Esi {
       });
     this.fetchHandler =
       options.fetch ??
-      (async (request: Request, requestContext: Request[]) =>
-        await fetch(request));
+      ((request: Request, requestContext: Request[]) => fetch(request));
   }
 
   async parseResponse(
