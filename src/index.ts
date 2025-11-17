@@ -1,3 +1,5 @@
+import { serializeError } from "serialize-error";
+
 function hasEsiSurrogateControl(response: Response): boolean {
   const surrogateControl = response.headers.get("Surrogate-Control");
   if (!surrogateControl) {
@@ -73,46 +75,8 @@ function shimEsiTags(html: string, tag: string): string {
     .replace(/<\/esi:include>/gi, `</${tag}>`);
 }
 
-function logError(error: unknown, context?: Record<string, unknown>): void {
-  // Extract all error properties including non-enumerable ones
-  const errorObj = error instanceof Error ? error : new Error(String(error));
-  const errorWithCode = errorObj as Error & { code?: number | string };
-
-  // Build error info object with all properties
-  const errorInfo: Record<string, unknown> = {
-    message: errorObj.message,
-    name: errorObj.name,
-    stack: errorObj.stack,
-  };
-
-  // Add error code if it exists (e.g., Cloudflare Workers error 1042)
-  if (errorWithCode.code !== undefined) {
-    errorInfo.code = errorWithCode.code;
-  }
-
-  // Add all own properties from the error object
-  for (const key of Object.getOwnPropertyNames(errorObj)) {
-    if (!(key in errorInfo)) {
-      try {
-        errorInfo[key] = (errorObj as unknown as Record<string, unknown>)[key];
-      } catch {
-        // Skip properties that can't be accessed
-      }
-    }
-  }
-
-  // Add cause if it exists
-  if (errorObj.cause !== undefined) {
-    errorInfo.cause = errorObj.cause;
-  }
-
-  // Add any additional context
-  if (context) {
-    errorInfo.context = context;
-  }
-
-  // Log with all information
-  console.error("ESI Error:", errorInfo);
+function logError(error: unknown) {
+  console.error('[esi-html-rewriter]', serializeError(error))
 }
 
 export interface EsiOptions {
@@ -120,6 +84,8 @@ export interface EsiOptions {
   maxDepth?: number;
   allowedUrlPatterns?: (URLPattern | string)[];
   shim?: boolean;
+  onError?: (error: unknown, element: Element) => void;
+  fetch?: (request: Request, depth: number) => Promise<Response>;
 }
 
 export class Esi {
@@ -127,12 +93,26 @@ export class Esi {
   public readonly maxDepth: number;
   public readonly allowedUrlPatterns: (URLPattern | string)[] | undefined;
   public readonly shim: boolean;
+  private readonly onError: (error: unknown, element: Element) => void;
+  private readonly fetchHandler: (
+    request: Request,
+    depth: number,
+  ) => Promise<Response>;
 
   constructor(options: EsiOptions = {}) {
     this.maxDepth = options.maxDepth ?? 3;
     this.contentTypes = options.contentTypes || ["text/html"];
     this.allowedUrlPatterns = options.allowedUrlPatterns;
     this.shim = options.shim ?? false;
+    this.onError =
+      options.onError ??
+      ((error: unknown, element: Element) => {
+        element.remove();
+        logError(error);
+      });
+    this.fetchHandler =
+      options.fetch ??
+      (async (request: Request) => await fetch(request));
   }
 
   async parseResponse(
@@ -169,8 +149,7 @@ export class Esi {
           try {
             await this.handleEsiInclude(element, request, depth);
           } catch (error) {
-            element.remove();
-            logError(error);
+            this.onError(error, element);
           }
         },
       })
@@ -224,7 +203,7 @@ export class Esi {
 
   async fetch(request: Request, depth: number = 0): Promise<Response> {
     const requestWithCapability = addSurrogateCapability(request);
-    const response = await fetch(requestWithCapability);
+    const response = await this.fetchHandler(requestWithCapability, depth);
     return this.parseResponse(response, request, depth);
   }
 }
