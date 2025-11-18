@@ -1,6 +1,6 @@
 {
   "name": "esi-html-rewriter",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "ESI parser for Cloudflare Workers",
   "type": "module",
   "main": "src/index.ts",
