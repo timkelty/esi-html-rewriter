@@ -1,7 +1,10 @@
 import { serializeError } from "serialize-error";
 
-function hasEsiSurrogateControl(response: Response): boolean {
-  const surrogateControl = response.headers.get("Surrogate-Control");
+function hasEsiSurrogateControl(
+  response: Response,
+  headerName: string,
+): boolean {
+  const surrogateControl = response.headers.get(headerName);
   if (!surrogateControl) {
     return false;
   }
@@ -100,6 +103,12 @@ export interface EsiOptions {
    * the connecting IP (CF-Connecting-IP) matches one of the provided IPs.
    */
   surrogateDelegation?: boolean | string[];
+  /**
+   * Name of the header that the library will check for Surrogate-Control.
+   * We allow customization as Cloudflare prioritizes Surrogate-Control over Cache-Control.
+   * @default "Surrogate-Control"
+   */
+  surrogateControlHeader?: string;
 }
 
 export class Esi {
@@ -109,6 +118,7 @@ export class Esi {
   public readonly shim: boolean;
   private readonly onError: (error: unknown, element: Element) => void;
   private readonly surrogateDelegation: boolean | string[];
+  private readonly surrogateControlHeader: string;
 
   constructor(options: Partial<EsiOptions> = {}) {
     this.maxDepth = options.maxDepth ?? 3;
@@ -116,6 +126,8 @@ export class Esi {
     this.allowedUrlPatterns = options.allowedUrlPatterns ?? [new URLPattern()];
     this.shim = options.shim ?? false;
     this.surrogateDelegation = options.surrogateDelegation ?? false;
+    this.surrogateControlHeader =
+      options.surrogateControlHeader ?? "Surrogate-Control";
     this.onError =
       options.onError ??
       ((error: unknown, element: Element) => {
@@ -144,7 +156,7 @@ export class Esi {
     if (
       !response.body ||
       shouldDelegateToSurrogate(parentRequest, this.surrogateDelegation) ||
-      !hasEsiSurrogateControl(response) ||
+      !hasEsiSurrogateControl(response, this.surrogateControlHeader) ||
       !hasAllowedContentType(response, this.contentTypes)
     ) {
       return response;
@@ -203,7 +215,7 @@ export class Esi {
       element.replace(await esiResponse.text(), { html: true });
     };
 
-    return new HTMLRewriter()
+    const transformedResponse = new HTMLRewriter()
       .on(selector, {
         element: async (element: Element) => {
           try {
@@ -214,6 +226,20 @@ export class Esi {
         },
       })
       .transform(responseToParse);
+
+    // Modify headers after ESI processing
+    // Set Cache-Control to prevent caching of dynamically assembled content
+    transformedResponse.headers.set("Cache-Control", "private, max-age=0");
+
+    // Remove cache validation headers that are no longer valid after ESI processing
+    transformedResponse.headers.delete("Last-Modified");
+    transformedResponse.headers.delete("ETag");
+    transformedResponse.headers.delete("content-length");
+
+    // Remove Surrogate-Control header as it's an internal processing directive
+    transformedResponse.headers.delete(this.surrogateControlHeader);
+
+    return transformedResponse;
   }
 
   async fetch(request: Request, context: Request[] = []): Promise<Response> {
