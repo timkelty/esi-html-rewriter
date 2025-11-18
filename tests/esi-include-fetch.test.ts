@@ -97,4 +97,40 @@ describe("ESI include fetch", () => {
     expect((errorArg as Error).message).toBe("Network error");
     expect(text).not.toContain("<esi-include");
   });
+
+  it("should use custom fetch in ESI includes", async () => {
+    const html =
+      '<html><body><esi:include src="https://example.com/content" /></body></html>';
+
+    const customFetchHandler = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = getUrlString(input);
+        if (url === "https://example.com/content") {
+          return new Response("<p>Content</p>", {
+            headers: {
+              "Content-Type": "text/html",
+              "Surrogate-Control": 'content="ESI/1.0"',
+            },
+          });
+        }
+        return new Response("Not found", { status: 404 });
+      },
+    );
+
+    const esi = new Esi({
+      shim: true,
+      fetch: customFetchHandler,
+    });
+    const { response, request } = createEsiResponse(
+      html,
+      "https://example.com",
+    );
+    const result = await esi.parseResponse(response, [request]);
+    const text = await result.text();
+
+    expect(customFetchHandler).toHaveBeenCalled();
+    // Verify content was processed
+    expect(text).toContain("<p>Content</p>");
+    expect(text).not.toContain("<esi-include");
+  });
 });

@@ -90,6 +90,11 @@ function log(value: unknown, level: "error" | "warn" | "info" | "log" = "log") {
   console[level]("[esi-html-rewriter]", serializeError(value));
 }
 
+export type FetchHandler = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>;
+
 export interface EsiOptions {
   contentTypes: string[];
   maxDepth: number;
@@ -109,6 +114,12 @@ export interface EsiOptions {
    * @default "Surrogate-Control"
    */
   surrogateControlHeader?: string;
+  /**
+   * Custom fetch function to override the default global fetch.
+   * Has the same signature as the global fetch function.
+   * @default Uses global fetch
+   */
+  fetch?: FetchHandler;
 }
 
 export class Esi {
@@ -119,15 +130,21 @@ export class Esi {
   private readonly onError: (error: unknown, element: Element) => void;
   private readonly surrogateDelegation: boolean | string[];
   private readonly surrogateControlHeader: string;
+  private readonly fetch: FetchHandler;
 
   constructor(options: Partial<EsiOptions> = {}) {
     this.maxDepth = options.maxDepth ?? 5;
-    this.contentTypes = options.contentTypes ?? ["text/html"];
+    this.contentTypes = options.contentTypes ?? ["text/html", "text/plain"];
     this.allowedUrlPatterns = options.allowedUrlPatterns ?? [new URLPattern()];
     this.shim = options.shim ?? false;
     this.surrogateDelegation = options.surrogateDelegation ?? false;
     this.surrogateControlHeader =
       options.surrogateControlHeader ?? "Surrogate-Control";
+    this.fetch =
+      options.fetch ??
+      (async (input: RequestInfo | URL, init?: RequestInit) => {
+        return globalThis.fetch(input, init);
+      });
     this.onError =
       options.onError ??
       ((error: unknown, element: Element) => {
@@ -195,7 +212,7 @@ export class Esi {
         });
       }
 
-      const esiResponse = await this.fetch(esiRequest, context);
+      const esiResponse = await this.handleRequest(esiRequest, context);
 
       if (!esiResponse.ok) {
         throw new Error("ESI include response not OK", {
@@ -242,9 +259,12 @@ export class Esi {
     return transformedResponse;
   }
 
-  async fetch(request: Request, context: Request[] = []): Promise<Response> {
+  async handleRequest(
+    request: Request,
+    context: Request[] = [],
+  ): Promise<Response> {
     const requestWithCapability = addSurrogateCapability(request);
-    const response = await fetch(requestWithCapability);
+    const response = await this.fetch(requestWithCapability);
     return this.parseResponse(response, [...context, request]);
   }
 }

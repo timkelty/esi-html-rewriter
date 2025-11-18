@@ -88,7 +88,7 @@ export default {
 
         const esi = new Esi();
 
-        return esi.fetch(targetRequest);
+        return esi.handleRequest(targetRequest);
       } catch (error) {
         return new Response(
           `Error: ${error instanceof Error ? error.message : String(error)}`,

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Esi } from "../src/index";
 import { getUrlString } from "./helpers";
 
-describe("Esi.fetch", () => {
+describe("Esi.handleRequest", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
   });
@@ -37,7 +37,7 @@ describe("Esi.fetch", () => {
     });
 
     const request = new Request("https://example.com/page");
-    const result = await esi.fetch(request);
+    const result = await esi.handleRequest(request);
     const text = await result.text();
 
     expect(text).toContain("<p>Processed content</p>");
@@ -66,7 +66,7 @@ describe("Esi.fetch", () => {
     });
 
     const request = new Request("https://example.com/page");
-    const result = await esi.fetch(request);
+    const result = await esi.handleRequest(request);
     const text = await result.text();
 
     expect(text).toContain("<esi:include");
@@ -100,7 +100,7 @@ describe("Esi.fetch", () => {
     });
 
     const request = new Request("https://example.com/page");
-    const result = await esi.fetch(request);
+    const result = await esi.handleRequest(request);
     const text = await result.text();
 
     expect(fetchCalled).toBe(true);

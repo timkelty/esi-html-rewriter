@@ -1,6 +1,7 @@
 # ESI Parser for Cloudflare Workers
 
-An ESI (Edge Side Includes) parser for Cloudflare Workers using HTMLRewriter.
+An ESI parser for Cloudflare Workers using HTMLRewriter.
+Heavily inspired by [cloudflare-esi](https://github.com/cdloh/cloudflare-esi).
 
 ## Features
 
@@ -9,6 +10,14 @@ An ESI (Edge Side Includes) parser for Cloudflare Workers using HTMLRewriter.
 - ✅ ESI/1.0 compliant: Only processes responses with `Surrogate-Control` header
 - ✅ Automatic error logging with full error details
 - ✅ Requires `html_rewriter_treats_esi_include_as_void_tag` compatibility flag
+
+## ESI Tag Support
+
+This library **only supports `esi:include` tags**. Other ESI tags such as `esi:vars`, `esi:try`, `esi:choose`, `esi:when`, `esi:otherwise`, `esi:comment`, etc. are **not supported** and will be left unchanged in the HTML.
+
+### `esi:include` Attribute Support
+
+The `esi:include` tag supports the `src` attribute (required). The `onerror` and `alt` attributes are **not supported**. However, you can control error handling behavior using the `onError` option (see [Error Handling](#error-handling) section below).
 
 ## Usage
 
@@ -20,9 +29,9 @@ import { Esi } from "esi-html-rewriter";
 const esi = new Esi({ shim: true });
 
 // Process a Response (ESI/1.0 compliant - only processes if Surrogate-Control header is present)
-// Esi.fetch automatically adds the Surrogate-Capability header to advertise ESI support
+// Esi.handleRequest automatically adds the Surrogate-Capability header to advertise ESI support
 const request = new Request("https://example.com/page");
-const processedResponse = await esi.fetch(request);
+const processedResponse = await esi.handleRequest(request);
 
 // Or process an existing Response
 const response = new Response(html, {
@@ -38,7 +47,7 @@ const processed = await esi.parseResponse(response, [request]);
 
 This library follows the ESI/1.0 specification for surrogate control:
 
-1. **Advertise capabilities**: The `fetch()` method automatically adds the `Surrogate-Capability` header to requests, advertising that your worker can process ESI.
+1. **Advertise capabilities**: The `handleRequest()` method automatically adds the `Surrogate-Capability` header to requests, advertising that your worker can process ESI.
 
 2. **Check for delegation**: When `surrogateDelegation` is enabled, the `parseResponse()` method checks if downstream surrogates can handle ESI processing. If so, it delegates the response without processing.
 
@@ -58,7 +67,7 @@ export default {
 
     // Fetch and process (automatically adds Surrogate-Capability header)
     // Only processes if response has Surrogate-Control: content="ESI/1.0"
-    return esi.fetch(request);
+    return esi.handleRequest(request);
   },
 };
 ```
@@ -67,16 +76,20 @@ export default {
 
 The parser supports the following options:
 
-- `contentTypes`: Array of content types that should be processed for ESI includes (default: `['text/html']`)
-- `maxDepth`: Maximum recursion depth for nested ESI includes (default: `3`)
+- `contentTypes`: Array of content types that should be processed for ESI includes (default: `['text/html', 'text/plain']`)
+- `maxDepth`: Maximum recursion depth for nested ESI includes (default: `5`)
 - `allowedUrlPatterns`: Array of `URLPattern` objects to restrict which URLs can be included (default: `[new URLPattern()]` - allows all URLs)
 - `shim`: When `true`, replaces `<esi:include />` tags with `<esi-include></esi-include>` to work around compatibility flag issues (default: `false`)
 - `onError`: Optional callback function `(error: unknown, element: Element) => void` for custom error handling. Default behavior removes the element and logs the error.
 - `surrogateDelegation`: Surrogate Delegation - if `true` and the request has valid `Surrogate-Capability` headers indicating a downstream surrogate can handle ESI, the response will be returned without processing. If an array of strings, each string is treated as an IP address. Delegation only occurs if the connecting IP (`CF-Connecting-IP`) matches one of the provided IPs. (default: `false`)
+- `surrogateControlHeader`: Name of the header to check for Surrogate-Control. Useful when Cloudflare prioritizes Surrogate-Control over Cache-Control. (default: `"Surrogate-Control"`)
+- `fetch`: Custom fetch function to override the default global fetch. Has the same signature as the global fetch function. (default: uses global `fetch`)
 
 ### Error Handling
 
 When an ESI include fails (network error, 404, etc.), by default the error is logged to `console.error` with full details (including error code, cause, stack trace, etc.) and the element is removed from the HTML. This allows processing to continue for other ESI includes even if one fails.
+
+**Note:** The `onerror` and `alt` attributes on `esi:include` tags are not supported. Use the `onError` option instead to customize error handling behavior.
 
 You can customize error handling by providing an `onError` callback:
 
@@ -101,7 +114,7 @@ import { Esi } from "esi-html-rewriter";
 // Limit recursion depth to prevent infinite loops
 const esi1 = new Esi({ maxDepth: 5, shim: true });
 const request1 = new Request("https://example.com/page");
-const result1 = await esi1.fetch(request1);
+const result1 = await esi1.handleRequest(request1);
 
 // Restrict which URLs can be included using URLPattern
 const esi2 = new Esi({
@@ -112,7 +125,7 @@ const esi2 = new Esi({
   shim: true,
 });
 const request2 = new Request("https://example.com/page");
-const result2 = await esi2.fetch(request2);
+const result2 = await esi2.handleRequest(request2);
 
 // Combine security options
 const esi3 = new Esi({
@@ -124,7 +137,7 @@ const esi3 = new Esi({
   shim: true,
 });
 const request3 = new Request("https://example.com/page");
-const result3 = await esi3.fetch(request3);
+const result3 = await esi3.handleRequest(request3);
 
 // Custom error handling
 const esi4 = new Esi({
@@ -185,7 +198,7 @@ There is a [known bug](https://github.com/cloudflare/workerd/issues/5531) where 
 ```typescript
 const esi = new Esi({ shim: true });
 const request = new Request("https://example.com/page");
-const processed = await esi.fetch(request);
+const processed = await esi.handleRequest(request);
 // or
 const processed = await esi.parseResponse(response, [request]);
 ```
