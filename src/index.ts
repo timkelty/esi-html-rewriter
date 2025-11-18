@@ -121,7 +121,7 @@ export class Esi {
   private readonly surrogateControlHeader: string;
 
   constructor(options: Partial<EsiOptions> = {}) {
-    this.maxDepth = options.maxDepth ?? 3;
+    this.maxDepth = options.maxDepth ?? 5;
     this.contentTypes = options.contentTypes ?? ["text/html"];
     this.allowedUrlPatterns = options.allowedUrlPatterns ?? [new URLPattern()];
     this.shim = options.shim ?? false;
