@@ -90,11 +90,6 @@ function log(value: unknown, level: "error" | "warn" | "info" | "log" = "log") {
   console[level]("[esi-html-rewriter]", serializeError(value));
 }
 
-export type FetchHandler = (
-  input: RequestInfo | URL,
-  init?: RequestInit,
-) => Promise<Response>;
-
 export interface EsiOptions {
   contentTypes: string[];
   maxDepth: number;
@@ -116,10 +111,9 @@ export interface EsiOptions {
   surrogateControlHeader?: string;
   /**
    * Custom fetch function to override the default global fetch.
-   * Has the same signature as the global fetch function.
    * @default Uses global fetch
    */
-  fetch?: FetchHandler;
+  fetch?: typeof fetch;
 }
 
 export class Esi {
@@ -130,7 +124,7 @@ export class Esi {
   private readonly onError: (error: unknown, element: Element) => void;
   private readonly surrogateDelegation: boolean | string[];
   private readonly surrogateControlHeader: string;
-  private readonly fetch: FetchHandler;
+  private readonly fetch: typeof fetch;
 
   constructor(options: Partial<EsiOptions> = {}) {
     this.maxDepth = options.maxDepth ?? 5;
@@ -142,9 +136,7 @@ export class Esi {
       options.surrogateControlHeader ?? "Surrogate-Control";
     this.fetch =
       options.fetch ??
-      (async (input: RequestInfo | URL, init?: RequestInit) => {
-        return globalThis.fetch(input, init);
-      });
+      fetch;
     this.onError =
       options.onError ??
       ((error: unknown, element: Element) => {
