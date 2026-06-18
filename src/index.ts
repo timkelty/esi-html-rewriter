@@ -121,6 +121,8 @@ export interface EsiOptions {
 }
 
 export interface EsiErrorContext {
+  error: unknown;
+  element: Element;
   request: Request;
   response: Response;
   includeRequest: Request;
@@ -253,6 +255,8 @@ export class Esi {
             });
           } catch (error) {
             this.onError(error, element, {
+              error,
+              element,
               request: parentRequest,
               response,
               includeRequest,

@@ -167,9 +167,11 @@ describe("error handling", () => {
     const text = await result.text();
 
     expect(onError).toHaveBeenCalledTimes(1);
-    const [errorArg, , contextArg] = onError.mock.calls[0];
+    const [errorArg, elementArg, contextArg] = onError.mock.calls[0];
 
     expect(errorArg).toBeInstanceOf(Error);
+    expect(contextArg.error).toBe(errorArg);
+    expect(contextArg.element).toBe(elementArg);
     expect(contextArg.request.url).toBe("https://example.com/page");
     expect(contextArg.response.headers.get("Content-Type")).toBe(
       "text/html; charset=utf-8",
@@ -213,9 +215,11 @@ describe("error handling", () => {
     const text = await result.text();
 
     expect(onError).toHaveBeenCalledTimes(1);
-    const [errorArg, , contextArg] = onError.mock.calls[0];
+    const [errorArg, elementArg, contextArg] = onError.mock.calls[0];
 
     expect(errorArg).toBeInstanceOf(Error);
+    expect(contextArg.error).toBe(errorArg);
+    expect(contextArg.element).toBe(elementArg);
     expect(contextArg.request.url).toBe("https://example.com/plain");
     expect(contextArg.response.headers.get("Content-Type")).toBe(
       "text/plain; charset=utf-8",
