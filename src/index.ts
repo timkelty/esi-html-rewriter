@@ -119,8 +119,8 @@ export interface EsiOptions {
 export interface EsiErrorContext {
   error: unknown;
   element: Element;
-  parentResponse: Response;
-  esiRequest: Request;
+  sourceResponse: Response;
+  request: Request;
 }
 
 export class Esi {
@@ -248,8 +248,8 @@ export class Esi {
             this.onError({
               error,
               element,
-              parentResponse: response,
-              esiRequest,
+              sourceResponse: response,
+              request: esiRequest,
             });
           }
         },
