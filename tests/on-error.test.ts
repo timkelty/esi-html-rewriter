@@ -174,7 +174,6 @@ describe("error handling", () => {
 
     expect(error).toBeInstanceOf(Error);
     expect(element).toBeDefined();
-    expect(contextArg.parentRequest.url).toBe("https://example.com/page");
     expect(contextArg.parentResponse.headers.get("Content-Type")).toBe(
       "text/html; charset=utf-8",
     );
@@ -222,7 +221,6 @@ describe("error handling", () => {
 
     expect(error).toBeInstanceOf(Error);
     expect(element).toBeDefined();
-    expect(contextArg.parentRequest.url).toBe("https://example.com/plain");
     expect(contextArg.parentResponse.headers.get("Content-Type")).toBe(
       "text/plain; charset=utf-8",
     );
