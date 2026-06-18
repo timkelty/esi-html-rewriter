@@ -174,7 +174,7 @@ describe("error handling", () => {
 
     expect(error).toBeInstanceOf(Error);
     expect(element).toBeDefined();
-    expect(contextArg.sourceResponse.headers.get("Content-Type")).toBe(
+    expect(contextArg.source.headers.get("Content-Type")).toBe(
       "text/html; charset=utf-8",
     );
     expect(contextArg.request.url).toBe("https://example.com/missing?via=esi");
@@ -219,7 +219,7 @@ describe("error handling", () => {
 
     expect(error).toBeInstanceOf(Error);
     expect(element).toBeDefined();
-    expect(contextArg.sourceResponse.headers.get("Content-Type")).toBe(
+    expect(contextArg.source.headers.get("Content-Type")).toBe(
       "text/plain; charset=utf-8",
     );
     expect(contextArg.request.url).toBe(
