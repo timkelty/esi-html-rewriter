@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Esi } from "../src/index";
+import { Esi, type EsiErrorContext } from "../src/index";
 import { createEsiResponse, getUrlString } from "./helpers";
 
 describe("ESI include fetch", () => {
@@ -79,8 +79,8 @@ describe("ESI include fetch", () => {
     });
     globalThis.fetch = mockFetch;
 
-    const onError = vi.fn((error: unknown, element: Element) => {
-      element.remove();
+    const onError = vi.fn((context: EsiErrorContext) => {
+      context.element.remove();
     });
 
     const esi = new Esi({ shim: true, onError });
@@ -93,8 +93,8 @@ describe("ESI include fetch", () => {
 
     expect(mockFetch).toHaveBeenCalled();
     expect(onError).toHaveBeenCalled();
-    const errorArg = onError.mock.calls[0][0];
-    expect((errorArg as Error).message).toBe("Network error");
+    const { error } = onError.mock.calls[0][0];
+    expect((error as Error).message).toBe("Network error");
     expect(text).not.toContain("<esi-include");
   });
 

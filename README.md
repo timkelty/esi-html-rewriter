@@ -80,7 +80,7 @@ The parser supports the following options:
 - `maxDepth`: Maximum recursion depth for nested ESI includes (default: `5`)
 - `allowedUrlPatterns`: Array of `URLPattern` objects to restrict which URLs can be included (default: `[new URLPattern()]` - allows all URLs)
 - `shim`: When `true`, replaces `<esi:include />` tags with `<esi-include></esi-include>` to work around compatibility flag issues (default: `false`)
-- `onError`: Optional callback function `(error: unknown, element: Element) => void` for custom error handling. Default behavior removes the element and logs the error.
+- `onError`: Optional callback function `(context: EsiErrorContext) => void` for custom error handling. Default behavior removes the element and logs the error.
 - `surrogateDelegation`: Surrogate Delegation - if `true` and the request has valid `Surrogate-Capability` headers indicating a downstream surrogate can handle ESI, the response will be returned without processing. If an array of strings, each string is treated as an IP address. Delegation only occurs if the connecting IP (`CF-Connecting-IP`) matches one of the provided IPs. (default: `false`)
 - `surrogateControlHeader`: Name of the header to check for Surrogate-Control. Useful when Cloudflare prioritizes Surrogate-Control over Cache-Control. (default: `"Surrogate-Control"`)
 - `fetch`: Custom fetch function to override the default global fetch. Has the same signature as the global fetch function. (default: uses global `fetch`)
@@ -96,10 +96,9 @@ You can customize error handling by providing an `onError` callback:
 ```typescript
 const esi = new Esi({
   shim: true,
-  onError: (error, element) => {
-    // Custom error handling - replace with error message, log to external service, etc.
-    element.replace(
-      `<!-- Error: ${error instanceof Error ? error.message : String(error)} -->`,
+  onError: (context) => {
+    context.element.replace(
+      `<!-- Error: ${context.error instanceof Error ? context.error.message : String(context.error)} -->`,
       { html: true },
     );
   },
@@ -142,9 +141,9 @@ const result3 = await esi3.handleRequest(request3);
 // Custom error handling
 const esi4 = new Esi({
   shim: true,
-  onError: (error, element) => {
-    console.error("ESI include failed:", error);
-    element.replace("<!-- ESI include failed -->", { html: true });
+  onError: (context) => {
+    console.error("ESI include failed:", context.error);
+    context.element.replace("<!-- ESI include failed -->", { html: true });
   },
 });
 

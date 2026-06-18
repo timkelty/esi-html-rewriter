@@ -95,11 +95,7 @@ export interface EsiOptions {
   maxDepth: number;
   allowedUrlPatterns: URLPattern[];
   shim: boolean;
-  onError?: (
-    error: unknown,
-    element: Element,
-    context: EsiErrorContext,
-  ) => void;
+  onError?: (context: EsiErrorContext) => void;
   /**
    * Surrogate Delegation - if true and the request has valid Surrogate-Capability headers
    * indicating a downstream surrogate can handle ESI, the response will be returned without processing.
@@ -133,11 +129,7 @@ export class Esi {
   public readonly maxDepth: number;
   public readonly allowedUrlPatterns: URLPattern[];
   public readonly shim: boolean;
-  private readonly onError: (
-    error: unknown,
-    element: Element,
-    context: EsiErrorContext,
-  ) => void;
+  private readonly onError: (context: EsiErrorContext) => void;
   private readonly surrogateDelegation: boolean | string[];
   private readonly surrogateControlHeader: string;
   private readonly fetch: typeof fetch;
@@ -153,9 +145,9 @@ export class Esi {
     this.fetch = options.fetch ?? fetch;
     this.onError =
       options.onError ??
-      ((error: unknown, element: Element) => {
-        element.remove();
-        log(error);
+      ((context: EsiErrorContext) => {
+        context.element.remove();
+        log(context.error);
       });
   }
 
@@ -254,7 +246,7 @@ export class Esi {
               includeRequest = request;
             });
           } catch (error) {
-            this.onError(error, element, {
+            this.onError({
               error,
               element,
               request: parentRequest,

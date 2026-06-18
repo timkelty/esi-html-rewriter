@@ -117,8 +117,8 @@ describe("error handling", () => {
     });
     globalThis.fetch = mockFetch;
 
-    const onError = vi.fn((error: unknown, element: Element) => {
-      element.replace("<!-- Custom error handler -->", { html: true });
+    const onError = vi.fn((context: EsiErrorContext) => {
+      context.element.replace("<!-- Custom error handler -->", { html: true });
     });
 
     const esi = new Esi({ shim: true, onError });
@@ -130,9 +130,9 @@ describe("error handling", () => {
     const text = await result.text();
 
     expect(onError).toHaveBeenCalledTimes(1);
-    const errorArg = onError.mock.calls[0][0];
-    expect(errorArg).toBeInstanceOf(Error);
-    expect((errorArg as Error).message).toBe("ESI include response not OK");
+    const { error } = onError.mock.calls[0][0];
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("ESI include response not OK");
     expect(text).toContain("<!-- Custom error handler -->");
     expect(text).not.toContain("<esi-include");
   });
@@ -146,11 +146,7 @@ describe("error handling", () => {
     });
     globalThis.fetch = mockFetch;
 
-    const onError = vi.fn(
-      (_error: unknown, element: Element, _context: EsiErrorContext) => {
-        element.remove();
-      },
-    );
+    let capturedContext: EsiErrorContext | null = null;
 
     const response = new Response(html, {
       headers: {
@@ -162,16 +158,22 @@ describe("error handling", () => {
       headers: { "X-Parent-Request": "yes" },
     });
 
-    const esi = new Esi({ shim: true, onError });
+    const esi = new Esi({
+      shim: true,
+      onError: (context) => {
+        capturedContext = context;
+        context.element.remove();
+      },
+    });
     const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
-    expect(onError).toHaveBeenCalledTimes(1);
-    const [errorArg, elementArg, contextArg] = onError.mock.calls[0];
+    expect(capturedContext).not.toBeNull();
+    const contextArg = capturedContext;
+    const { error, element } = contextArg;
 
-    expect(errorArg).toBeInstanceOf(Error);
-    expect(contextArg.error).toBe(errorArg);
-    expect(contextArg.element).toBe(elementArg);
+    expect(error).toBeInstanceOf(Error);
+    expect(element).toBeDefined();
     expect(contextArg.request.url).toBe("https://example.com/page");
     expect(contextArg.response.headers.get("Content-Type")).toBe(
       "text/html; charset=utf-8",
@@ -194,11 +196,7 @@ describe("error handling", () => {
     });
     globalThis.fetch = mockFetch;
 
-    const onError = vi.fn(
-      (_error: unknown, element: Element, _context: EsiErrorContext) => {
-        element.remove();
-      },
-    );
+    let capturedContext: EsiErrorContext | null = null;
 
     const response = new Response(html, {
       headers: {
@@ -210,16 +208,22 @@ describe("error handling", () => {
       headers: { "X-Parent-Request": "yes" },
     });
 
-    const esi = new Esi({ shim: true, onError });
+    const esi = new Esi({
+      shim: true,
+      onError: (context) => {
+        capturedContext = context;
+        context.element.remove();
+      },
+    });
     const result = await esi.parseResponse(response, [request]);
     const text = await result.text();
 
-    expect(onError).toHaveBeenCalledTimes(1);
-    const [errorArg, elementArg, contextArg] = onError.mock.calls[0];
+    expect(capturedContext).not.toBeNull();
+    const contextArg = capturedContext;
+    const { error, element } = contextArg;
 
-    expect(errorArg).toBeInstanceOf(Error);
-    expect(contextArg.error).toBe(errorArg);
-    expect(contextArg.element).toBe(elementArg);
+    expect(error).toBeInstanceOf(Error);
+    expect(element).toBeDefined();
     expect(contextArg.request.url).toBe("https://example.com/plain");
     expect(contextArg.response.headers.get("Content-Type")).toBe(
       "text/plain; charset=utf-8",
@@ -242,8 +246,8 @@ describe("error handling", () => {
     });
     globalThis.fetch = mockFetch;
 
-    const onError = vi.fn((error: unknown, element: Element) => {
-      element.remove();
+    const onError = vi.fn((context: EsiErrorContext) => {
+      context.element.remove();
     });
 
     const esi = new Esi({ shim: true, onError });
@@ -255,9 +259,9 @@ describe("error handling", () => {
     const text = await result.text();
 
     expect(onError).toHaveBeenCalledTimes(1);
-    const errorArg = onError.mock.calls[0][0];
-    expect(errorArg).toBeInstanceOf(Error);
-    expect((errorArg as Error).message).toBe("Network error");
+    const { error } = onError.mock.calls[0][0];
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("Network error");
     expect(text).not.toContain("<esi-include");
   });
 
