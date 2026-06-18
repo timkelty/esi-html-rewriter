@@ -119,9 +119,9 @@ export interface EsiOptions {
 export interface EsiErrorContext {
   error: unknown;
   element: Element;
-  request: Request;
-  response: Response;
-  includeRequest: Request;
+  parentRequest: Request;
+  parentResponse: Response;
+  esiRequest: Request;
 }
 
 export class Esi {
@@ -192,7 +192,7 @@ export class Esi {
 
     const onEsiElement = async (
       element: Element,
-      setIncludeRequest: (request: Request) => void,
+      setEsiRequest: (request: Request) => void,
     ) => {
       const src = element.getAttribute("src");
 
@@ -203,25 +203,25 @@ export class Esi {
       const esiUrl = new URL(src, parentRequest.url);
       const isSameOrigin = new URL(parentRequest.url).origin === esiUrl.origin;
       const headers = isSameOrigin ? parentRequest.headers : new Headers();
-      const includeRequest = new Request(esiUrl, {
+      const esiRequest = new Request(esiUrl, {
         headers,
       });
-      setIncludeRequest(includeRequest);
+      setEsiRequest(esiRequest);
 
-      if (!matchesUrlPattern(includeRequest.url, this.allowedUrlPatterns)) {
+      if (!matchesUrlPattern(esiRequest.url, this.allowedUrlPatterns)) {
         throw new Error("ESI include URL not allowed", {
-          cause: { url: includeRequest.url },
+          cause: { url: esiRequest.url },
         });
       }
 
-      const esiResponse = await this.handleRequest(includeRequest, context);
+      const esiResponse = await this.handleRequest(esiRequest, context);
 
       if (!esiResponse.ok) {
         throw new Error("ESI include response not OK", {
           cause: {
             request: {
-              url: includeRequest.url,
-              headers: includeRequest.headers.entries(),
+              url: esiRequest.url,
+              headers: esiRequest.headers.entries(),
             },
             response: {
               status: esiResponse.status,
@@ -237,21 +237,21 @@ export class Esi {
     const transformedResponse = new HTMLRewriter()
       .on(selector, {
         element: async (element: Element) => {
-          let includeRequest = new Request(parentRequest.url, {
+          let esiRequest = new Request(parentRequest.url, {
             headers: parentRequest.headers,
           });
 
           try {
             await onEsiElement(element, (request) => {
-              includeRequest = request;
+              esiRequest = request;
             });
           } catch (error) {
             this.onError({
               error,
               element,
-              request: parentRequest,
-              response,
-              includeRequest,
+              parentRequest,
+              parentResponse: response,
+              esiRequest,
             });
           }
         },

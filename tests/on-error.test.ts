@@ -174,16 +174,14 @@ describe("error handling", () => {
 
     expect(error).toBeInstanceOf(Error);
     expect(element).toBeDefined();
-    expect(contextArg.request.url).toBe("https://example.com/page");
-    expect(contextArg.response.headers.get("Content-Type")).toBe(
+    expect(contextArg.parentRequest.url).toBe("https://example.com/page");
+    expect(contextArg.parentResponse.headers.get("Content-Type")).toBe(
       "text/html; charset=utf-8",
     );
-    expect(contextArg.includeRequest.url).toBe(
+    expect(contextArg.esiRequest.url).toBe(
       "https://example.com/missing?via=esi",
     );
-    expect(contextArg.includeRequest.headers.get("X-Parent-Request")).toBe(
-      "yes",
-    );
+    expect(contextArg.esiRequest.headers.get("X-Parent-Request")).toBe("yes");
     expect(text).not.toContain("<esi-include");
   });
 
@@ -224,16 +222,14 @@ describe("error handling", () => {
 
     expect(error).toBeInstanceOf(Error);
     expect(element).toBeDefined();
-    expect(contextArg.request.url).toBe("https://example.com/plain");
-    expect(contextArg.response.headers.get("Content-Type")).toBe(
+    expect(contextArg.parentRequest.url).toBe("https://example.com/plain");
+    expect(contextArg.parentResponse.headers.get("Content-Type")).toBe(
       "text/plain; charset=utf-8",
     );
-    expect(contextArg.includeRequest.url).toBe(
+    expect(contextArg.esiRequest.url).toBe(
       "https://assets.example.com/error?via=esi",
     );
-    expect(
-      contextArg.includeRequest.headers.get("X-Parent-Request"),
-    ).toBeNull();
+    expect(contextArg.esiRequest.headers.get("X-Parent-Request")).toBeNull();
     expect(text).not.toContain("<esi-include");
   });
 

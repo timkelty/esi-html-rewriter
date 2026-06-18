@@ -105,6 +105,8 @@ const esi = new Esi({
 });
 ```
 
+The error context includes `error`, `element`, `parentRequest`, `parentResponse`, and `esiRequest`.
+
 ### Security and Recursion Examples
 
 ```typescript
