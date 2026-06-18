@@ -105,7 +105,7 @@ const esi = new Esi({
 });
 ```
 
-The error context includes `error`, `element`, `source`, and `request`.
+The error context includes `error`, `element`, `source`, and `request`. `request` is `null` when the include request could not be created.
 
 ### Security and Recursion Examples
 

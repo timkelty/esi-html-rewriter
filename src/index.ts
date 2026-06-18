@@ -120,7 +120,7 @@ export interface EsiErrorContext {
   error: unknown;
   element: Element;
   source: Response;
-  request: Request;
+  request: Request | null;
 }
 
 export class Esi {
@@ -236,9 +236,7 @@ export class Esi {
     const transformedResponse = new HTMLRewriter()
       .on(selector, {
         element: async (element: Element) => {
-          let esiRequest = new Request(parentRequest.url, {
-            headers: parentRequest.headers,
-          });
+          let esiRequest: Request | null = null;
 
           try {
             await onEsiElement(element, (request) => {
@@ -248,7 +246,7 @@ export class Esi {
             this.onError({
               error,
               element,
-              source: response,
+              source: response.clone(),
               request: esiRequest,
             });
           }
