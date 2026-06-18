@@ -95,7 +95,11 @@ export interface EsiOptions {
   maxDepth: number;
   allowedUrlPatterns: URLPattern[];
   shim: boolean;
-  onError?: (error: unknown, element: Element) => void;
+  onError?: (
+    error: unknown,
+    element: Element,
+    context: EsiErrorContext,
+  ) => void;
   /**
    * Surrogate Delegation - if true and the request has valid Surrogate-Capability headers
    * indicating a downstream surrogate can handle ESI, the response will be returned without processing.
@@ -116,12 +120,22 @@ export interface EsiOptions {
   fetch?: typeof fetch;
 }
 
+export interface EsiErrorContext {
+  request: Request;
+  response: Response;
+  includeRequest: Request;
+}
+
 export class Esi {
   public readonly contentTypes: string[];
   public readonly maxDepth: number;
   public readonly allowedUrlPatterns: URLPattern[];
   public readonly shim: boolean;
-  private readonly onError: (error: unknown, element: Element) => void;
+  private readonly onError: (
+    error: unknown,
+    element: Element,
+    context: EsiErrorContext,
+  ) => void;
   private readonly surrogateDelegation: boolean | string[];
   private readonly surrogateControlHeader: string;
   private readonly fetch: typeof fetch;
@@ -134,9 +148,7 @@ export class Esi {
     this.surrogateDelegation = options.surrogateDelegation ?? false;
     this.surrogateControlHeader =
       options.surrogateControlHeader ?? "Surrogate-Control";
-    this.fetch =
-      options.fetch ??
-      fetch;
+    this.fetch = options.fetch ?? fetch;
     this.onError =
       options.onError ??
       ((error: unknown, element: Element) => {
@@ -184,7 +196,10 @@ export class Esi {
       );
     }
 
-    const onEsiElement = async (element: Element) => {
+    const onEsiElement = async (
+      element: Element,
+      setIncludeRequest: (request: Request) => void,
+    ) => {
       const src = element.getAttribute("src");
 
       if (!src) {
@@ -194,24 +209,25 @@ export class Esi {
       const esiUrl = new URL(src, parentRequest.url);
       const isSameOrigin = new URL(parentRequest.url).origin === esiUrl.origin;
       const headers = isSameOrigin ? parentRequest.headers : new Headers();
-      const esiRequest = new Request(esiUrl, {
+      const includeRequest = new Request(esiUrl, {
         headers,
       });
+      setIncludeRequest(includeRequest);
 
-      if (!matchesUrlPattern(esiRequest.url, this.allowedUrlPatterns)) {
+      if (!matchesUrlPattern(includeRequest.url, this.allowedUrlPatterns)) {
         throw new Error("ESI include URL not allowed", {
-          cause: { url: esiRequest.url },
+          cause: { url: includeRequest.url },
         });
       }
 
-      const esiResponse = await this.handleRequest(esiRequest, context);
+      const esiResponse = await this.handleRequest(includeRequest, context);
 
       if (!esiResponse.ok) {
         throw new Error("ESI include response not OK", {
           cause: {
             request: {
-              url: esiRequest.url,
-              headers: esiRequest.headers.entries(),
+              url: includeRequest.url,
+              headers: includeRequest.headers.entries(),
             },
             response: {
               status: esiResponse.status,
@@ -227,10 +243,20 @@ export class Esi {
     const transformedResponse = new HTMLRewriter()
       .on(selector, {
         element: async (element: Element) => {
+          let includeRequest = new Request(parentRequest.url, {
+            headers: parentRequest.headers,
+          });
+
           try {
-            await onEsiElement(element);
+            await onEsiElement(element, (request) => {
+              includeRequest = request;
+            });
           } catch (error) {
-            this.onError(error, element);
+            this.onError(error, element, {
+              request: parentRequest,
+              response,
+              includeRequest,
+            });
           }
         },
       })

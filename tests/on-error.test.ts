@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Esi } from "../src/index";
+import { Esi, type EsiErrorContext } from "../src/index";
 import { createEsiResponse } from "./helpers";
 
 describe("error handling", () => {
@@ -134,6 +134,98 @@ describe("error handling", () => {
     expect(errorArg).toBeInstanceOf(Error);
     expect((errorArg as Error).message).toBe("ESI include response not OK");
     expect(text).toContain("<!-- Custom error handler -->");
+    expect(text).not.toContain("<esi-include");
+  });
+
+  it("should call custom onError handler with context for error responses", async () => {
+    const html =
+      '<html><body><esi:include src="/missing?via=esi" /></body></html>';
+
+    const mockFetch = vi.fn(async () => {
+      return new Response("Not found", { status: 404 });
+    });
+    globalThis.fetch = mockFetch;
+
+    const onError = vi.fn(
+      (_error: unknown, element: Element, _context: EsiErrorContext) => {
+        element.remove();
+      },
+    );
+
+    const response = new Response(html, {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Surrogate-Control": 'content="ESI/1.0"',
+      },
+    });
+    const request = new Request("https://example.com/page", {
+      headers: { "X-Parent-Request": "yes" },
+    });
+
+    const esi = new Esi({ shim: true, onError });
+    const result = await esi.parseResponse(response, [request]);
+    const text = await result.text();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    const [errorArg, , contextArg] = onError.mock.calls[0];
+
+    expect(errorArg).toBeInstanceOf(Error);
+    expect(contextArg.request.url).toBe("https://example.com/page");
+    expect(contextArg.response.headers.get("Content-Type")).toBe(
+      "text/html; charset=utf-8",
+    );
+    expect(contextArg.includeRequest.url).toBe(
+      "https://example.com/missing?via=esi",
+    );
+    expect(contextArg.includeRequest.headers.get("X-Parent-Request")).toBe(
+      "yes",
+    );
+    expect(text).not.toContain("<esi-include");
+  });
+
+  it("should call custom onError handler with context for fetch errors", async () => {
+    const html =
+      '<esi:include src="https://assets.example.com/error?via=esi" />';
+
+    const mockFetch = vi.fn(async () => {
+      throw new Error("Network error");
+    });
+    globalThis.fetch = mockFetch;
+
+    const onError = vi.fn(
+      (_error: unknown, element: Element, _context: EsiErrorContext) => {
+        element.remove();
+      },
+    );
+
+    const response = new Response(html, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Surrogate-Control": 'content="ESI/1.0"',
+      },
+    });
+    const request = new Request("https://example.com/plain", {
+      headers: { "X-Parent-Request": "yes" },
+    });
+
+    const esi = new Esi({ shim: true, onError });
+    const result = await esi.parseResponse(response, [request]);
+    const text = await result.text();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    const [errorArg, , contextArg] = onError.mock.calls[0];
+
+    expect(errorArg).toBeInstanceOf(Error);
+    expect(contextArg.request.url).toBe("https://example.com/plain");
+    expect(contextArg.response.headers.get("Content-Type")).toBe(
+      "text/plain; charset=utf-8",
+    );
+    expect(contextArg.includeRequest.url).toBe(
+      "https://assets.example.com/error?via=esi",
+    );
+    expect(
+      contextArg.includeRequest.headers.get("X-Parent-Request"),
+    ).toBeNull();
     expect(text).not.toContain("<esi-include");
   });
 
