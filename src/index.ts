@@ -189,59 +189,52 @@ export class Esi {
       );
     }
 
-    const onEsiElement = async (
-      element: Element,
-      setEsiRequest: (request: Request) => void,
-    ) => {
-      const src = element.getAttribute("src");
-
-      if (!src) {
-        throw new Error("ESI include src attribute is required");
-      }
-
-      const esiUrl = new URL(src, parentRequest.url);
-      const isSameOrigin = new URL(parentRequest.url).origin === esiUrl.origin;
-      const headers = isSameOrigin ? parentRequest.headers : new Headers();
-      const esiRequest = new Request(esiUrl, {
-        headers,
-      });
-      setEsiRequest(esiRequest);
-
-      if (!matchesUrlPattern(esiRequest.url, this.allowedUrlPatterns)) {
-        throw new Error("ESI include URL not allowed", {
-          cause: { url: esiRequest.url },
-        });
-      }
-
-      const esiResponse = await this.handleRequest(esiRequest, context);
-
-      if (!esiResponse.ok) {
-        throw new Error("ESI include response not OK", {
-          cause: {
-            request: {
-              url: esiRequest.url,
-              headers: esiRequest.headers.entries(),
-            },
-            response: {
-              status: esiResponse.status,
-              headers: esiResponse.headers.entries(),
-            },
-          },
-        });
-      }
-
-      element.replace(await esiResponse.text(), { html: true });
-    };
-
     const transformedResponse = new HTMLRewriter()
       .on(selector, {
         element: async (element: Element) => {
           let esiRequest: Request | null = null;
 
           try {
-            await onEsiElement(element, (request) => {
-              esiRequest = request;
+            const src = element.getAttribute("src");
+
+            if (!src) {
+              throw new Error("ESI include src attribute is required");
+            }
+
+            const esiUrl = new URL(src, parentRequest.url);
+            const isSameOrigin =
+              new URL(parentRequest.url).origin === esiUrl.origin;
+            const headers = isSameOrigin
+              ? parentRequest.headers
+              : new Headers();
+            esiRequest = new Request(esiUrl, {
+              headers,
             });
+
+            if (!matchesUrlPattern(esiRequest.url, this.allowedUrlPatterns)) {
+              throw new Error("ESI include URL not allowed", {
+                cause: { url: esiRequest.url },
+              });
+            }
+
+            const esiResponse = await this.handleRequest(esiRequest, context);
+
+            if (!esiResponse.ok) {
+              throw new Error("ESI include response not OK", {
+                cause: {
+                  request: {
+                    url: esiRequest.url,
+                    headers: esiRequest.headers.entries(),
+                  },
+                  response: {
+                    status: esiResponse.status,
+                    headers: esiResponse.headers.entries(),
+                  },
+                },
+              });
+            }
+
+            element.replace(await esiResponse.text(), { html: true });
           } catch (error) {
             this.onError({
               error,
