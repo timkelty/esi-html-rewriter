@@ -268,7 +268,7 @@ describe("error handling", () => {
     expect(text).not.toContain("<esi-include");
   });
 
-  it("should pass an independent source clone to each custom onError handler", async () => {
+  it("should pass the source response to each custom onError handler", async () => {
     const html = `
       <html><body>
         <esi:include src="/missing-a" />
@@ -297,9 +297,14 @@ describe("error handling", () => {
     const text = await result.text();
 
     expect(sources).toHaveLength(2);
-    expect(sources[0]).not.toBe(sources[1]);
-    expect(await sources[0].text()).toBe(html);
-    expect(await sources[1].text()).toBe(html);
+    expect(sources[0]).toBe(response);
+    expect(sources[1]).toBe(response);
+    expect(sources[0].headers.get("Content-Type")).toBe(
+      "text/html; charset=utf-8",
+    );
+    expect(sources[1].headers.get("Content-Type")).toBe(
+      "text/html; charset=utf-8",
+    );
     expect(text).not.toContain("<esi-include");
   });
 
