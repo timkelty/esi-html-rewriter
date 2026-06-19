@@ -239,7 +239,7 @@ export class Esi {
             this.onError({
               error,
               element,
-              source: new Response(null, response),
+              source: response,
               request: esiRequest,
             });
           }

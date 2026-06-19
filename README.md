@@ -105,7 +105,7 @@ const esi = new Esi({
 });
 ```
 
-The error context includes `error`, `element`, `source`, and `request`. `source` is a bodyless copy of the response being rewritten, suitable for inspecting response metadata like headers and status. `request` is `null` when the include request could not be created.
+The error context includes `error`, `element`, `source`, and `request`. `source` is the response being rewritten, suitable for inspecting response metadata like headers and status. If your handler needs to consume its body or mutate its headers, clone it first. `request` is `null` when the include request could not be created.
 
 ### Security and Recursion Examples
 
